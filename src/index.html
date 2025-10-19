@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nova - Ultimate Trading Bot</title>
+    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #0f1729 100%);
+            color: #e0e7ff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(147, 51, 234, 0.1));
+            border-radius: 20px;
+            border: 1px solid rgba(99, 102, 241, 0.2);
+        }
+        
+        .logo {
+            font-size: 48px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #60a5fa, #a78bfa, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #94a3b8;
+            font-size: 18px;
+        }
+        
+        .wallet-section {
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .wallet-status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .status-badge {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .status-badge.connected {
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+            border: 1px solid #22c55e;
+        }
+        
+        .status-badge.disconnected {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border: 1px solid #ef4444;
+        }
+        
+        .wallet-address {
+            font-family: 'Courier New', monospace;
+            color: #60a5fa;
+            font-size: 14px;
+        }
+        
+        .wallet-balance {
+            display: flex;
+            gap: 30px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        
+        .balance-item {
+            text-align: center;
+        }
+        
+        .balance-label {
+            color: #94a3b8;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+        
+        .balance-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #60a5fa;
+        }
+        
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(59, 130, 246, 0.4);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .card {
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 15px;
+            padding: 25px;
+        }
+        
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .value-large {
+            font-size: 36px;
+            font-weight: 700;
+            color: #22c55e;
+            margin: 10px 0;
+        }
+        
+        .value-label {
+            color: #94a3b8;
+            font-size: 14px;
+        }
+        
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+        }
+        
+        th {
+            color: #60a5fa;
+            font-weight: 600;
+        }
+        
+        .feed-item {
+            padding: 12px;
+            border-left: 3px solid #3b82f6;
+            background: rgba(59, 130, 246, 0.1);
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        
+        .feed-time {
+            color: #94a3b8;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">✨ NOVA</div>
+            <div class="subtitle">Ultimate Solana Trading Bot</div>
+        </div>
+        
+        <!-- Wallet Connection Section -->
+        <div class="wallet-section">
+            <div class="wallet-status">
+                <span id="walletStatus" class="status-badge disconnected">🔴 NOT CONNECTED</span>
+                <span id="walletAddress" class="wallet-address"></span>
+            </div>
+            
+            <div id="walletBalance" class="wallet-balance" style="display: none;">
+                <div class="balance-item">
+                    <div class="balance-label">SOL Balance</div>
+                    <div class="balance-value" id="solBalance">0.00</div>
+                </div>
+                <div class="balance-item">
+                    <div class="balance-label">USDC Balance</div>
+                    <div class="balance-value" id="usdcBalance">0.00</div>
+                </div>
+            </div>
+            
+            <button id="connectWalletBtn" class="btn-primary" onclick="connectWallet()">
+                🔗 Connect Phantom Wallet
+            </button>
+            <button id="disconnectWalletBtn" class="btn-danger" onclick="disconnectWallet()" style="display: none;">
+                🔌 Disconnect Wallet
+            </button>
+        </div>
+        
+        <!-- Rest of the UI -->
+        <div class="grid">
+            <div class="card">
+                <div class="card-title">🤖 Bot Status</div>
+                <span id="botStatus" class="status-badge disconnected">Inactive</span>
+                <div class="button-group">
+                    <button class="btn-success" onclick="startBot()">🚀 Start Bot</button>
+                    <button class="btn-primary" onclick="pauseBot()">⏸️ Pause</button>
+                    <button class="btn-danger" onclick="stopBot()">🛑 Stop & Sell All</button>
+                    <button class="btn-danger" onclick="emergencyExit()">🚨 Emergency Exit</button>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">💰 Capital Management</div>
+                <div class="value-large" id="tradingCapital">$50.00</div>
+                <div class="value-label">Trading Capital (75%)</div>
+                <div class="value-large" id="reserveBalance" style="color: #10b981;">$0.00</div>
+                <div class="value-label">Reserve Balance (25%)</div>
+                <div class="button-group">
+                    <button class="btn-success" onclick="withdrawReserve()">💸 Withdraw Reserve</button>
+                    <button class="btn-success" onclick="withdrawAll()">💰 Withdraw All</button>
+                    <button class="btn-success" onclick="withdrawProfits()">📈 Withdraw Profits</button>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">📊 Performance</div>
+                <div class="value-large" id="totalProfit">$0.00</div>
+                <div class="value-label">Total Profit</div>
+                <div style="margin-top: 15px;">
+                    <div>Win Rate: <span id="winRate">0%</span></div>
+                    <div id="tradeStats">0 trades (0 wins, 0 losses)</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-title">📍 Active Positions (<span id="positionCount">0</span>)</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Token</th>
+                        <th>Entry Price</th>
+                        <th>Current Price</th>
+                        <th>Amount</th>
+                        <th>P&L</th>
+                        <th>P&L %</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="positionsTable">
+                    <tr><td colspan="7" style="text-align: center;">No active positions</td></tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="grid">
+            <div class="card">
+                <div class="card-title">📡 Live Feed</div>
+                <div id="liveFeed"></div>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">📜 Recent Trades</div>
+                <div id="recentTrades">No trades yet</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let walletConnected = false;
+        let walletAddress = null;
+        
+        async function connectWallet() {
+            try {
+                if (!window.solana || !window.solana.isPhantom) {
+                    alert('Please install Phantom wallet!');
+                    window.open('https://phantom.app/', '_blank');
+                    return;
+                }
+                
+                const resp = await window.solana.connect();
+                walletAddress = resp.publicKey.toString();
+                walletConnected = true;
+                
+                document.getElementById('walletStatus').className = 'status-badge connected';
+                document.getElementById('walletStatus').textContent = '🟢 CONNECTED';
+                document.getElementById('walletAddress').textContent = walletAddress.slice(0, 4) + '...' + walletAddress.slice(-4);
+                document.getElementById('connectWalletBtn').style.display = 'none';
+                document.getElementById('disconnectWalletBtn').style.display = 'inline-block';
+                document.getElementById('walletBalance').style.display = 'flex';
+                
+                addToFeed('🔗 Wallet connected: ' + walletAddress.slice(0, 8) + '...');
+                
+                // Get wallet balance
+                await updateWalletBalance();
+                
+            } catch (err) {
+                console.error('Wallet connection failed:', err);
+                alert('Failed to connect wallet: ' + err.message);
+            }
+        }
+        
+        async function disconnectWallet() {
+            if (window.solana) {
+                await window.solana.disconnect();
+            }
+            walletConnected = false;
+            walletAddress = null;
+            
+            document.getElementById('walletStatus').className = 'status-badge disconnected';
+            document.getElementById('walletStatus').textContent = '🔴 NOT CONNECTED';
+            document.getElementById('walletAddress').textContent = '';
+            document.getElementById('connectWalletBtn').style.display = 'inline-block';
+            document.getElementById('disconnectWalletBtn').style.display = 'none';
+            document.getElementById('walletBalance').style.display = 'none';
+            
+            addToFeed('🔌 Wallet disconnected');
+        }
+        
+        async function updateWalletBalance() {
+            if (!walletAddress) return;
+            
+            try {
+                const response = await fetch('/api/wallet/balance', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ wallet_address: walletAddress })
+                });
+                
+                const data = await response.json();
+                document.getElementById('solBalance').textContent = data.sol.toFixed(4);
+                document.getElementById('usdcBalance').textContent = data.usdc.toFixed(2);
+            } catch (err) {
+                console.error('Failed to get balance:', err);
+            }
+        }
+        
+        async function startBot() {
+            if (!walletConnected) {
+                alert('Please connect your wallet first!');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/bot/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ wallet_address: walletAddress })
+                });
+                
+                const data = await response.json();
+                document.getElementById('botStatus').className = 'status-badge connected';
+                document.getElementById('botStatus').textContent = 'Active';
+                addToFeed('🚀 Bot started with wallet: ' + walletAddress.slice(0, 8) + '...');
+            } catch (err) {
+                alert('Failed to start bot: ' + err.message);
+            }
+        }
+        
+        async function stopBot() {
+            try {
+                await fetch('/api/bot/stop', { method: 'POST' });
+                document.getElementById('botStatus').className = 'status-badge disconnected';
+                document.getElementById('botStatus').textContent = 'Inactive';
+                addToFeed('🛑 Bot stopped');
+            } catch (err) {
+                alert('Failed to stop bot: ' + err.message);
+            }
+        }
+        
+        async function emergencyExit() {
+            if (!confirm('Emergency exit will sell all positions immediately. Continue?')) return;
+            
+            try {
+                await fetch('/api/bot/emergency_exit', { method: 'POST' });
+                addToFeed('🚨 Emergency exit executed!');
+            } catch (err) {
+                alert('Failed to execute emergency exit: ' + err.message);
+            }
+        }
+        
+        async function withdrawReserve() {
+            if (!walletConnected) {
+                alert('Please connect your wallet first!');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/withdraw/reserve', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ wallet_address: walletAddress })
+                });
+                
+                const data = await response.json();
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    addToFeed('💸 ' + data.message);
+                    await updateWalletBalance();
+                }
+            } catch (err) {
+                alert('Failed to withdraw: ' + err.message);
+            }
+        }
+        
+        function addToFeed(message) {
+            const feed = document.getElementById('liveFeed');
+            const item = document.createElement('div');
+            item.className = 'feed-item';
+            item.innerHTML = `
+                <div class="feed-time">${new Date().toLocaleTimeString()}</div>
+                <div>${message}</div>
+            `;
+            feed.insertBefore(item, feed.firstChild);
+            
+            // Keep only last 10 items
+            while (feed.children.length > 10) {
+                feed.removeChild(feed.lastChild);
+            }
+        }
+        
+        // Initialize
+        addToFeed('💵 Starting capital: $50.00');
+        addToFeed('💰 Reserve wallet: Az6NNWG5...');
+        addToFeed('🔗 APIs connected: Helius, Birdeye, Jupiter, DexScreener');
+        addToFeed('✨ Nova Ultimate initialized!');
+        
+        // Auto-connect if Phantom is already connected
+        if (window.solana && window.solana.isConnected) {
+            connectWallet();
+        }
+    </script>
+</body>
+</html>
+
