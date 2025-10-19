@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: nova-trading-bot
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn src.main_dex_fixed:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: PORT
+        value: 10000
+
