@@ -325,16 +325,33 @@
         
         async function connectWallet() {
             try {
-                if (!window.solana || !window.solana.isPhantom) {
-                    alert('Please install Phantom wallet!');
-                    window.open('https://phantom.app/', '_blank');
+                console.log('Attempting to connect wallet...');
+                console.log('window.solana:', window.solana);
+                
+                // Check if Phantom is installed
+                if (typeof window.solana === 'undefined') {
+                    alert('⚠️ Phantom wallet not detected!\n\nPlease:\n1. Install Phantom from https://phantom.app\n2. Refresh this page\n3. Try connecting again');
+                    window.open('https://phantom.app/download', '_blank');
                     return;
                 }
                 
+                if (!window.solana.isPhantom) {
+                    alert('⚠️ Please use Phantom wallet!');
+                    return;
+                }
+                
+                console.log('Phantom detected, connecting...');
+                
+                // Request connection
                 const resp = await window.solana.connect();
+                console.log('Connection response:', resp);
+                
                 walletAddress = resp.publicKey.toString();
                 walletConnected = true;
                 
+                console.log('✅ Wallet connected:', walletAddress);
+                
+                // Update UI
                 document.getElementById('walletStatus').className = 'status-badge connected';
                 document.getElementById('walletStatus').textContent = '🟢 CONNECTED';
                 document.getElementById('walletAddress').textContent = walletAddress.slice(0, 4) + '...' + walletAddress.slice(-4);
@@ -348,8 +365,16 @@
                 await updateWalletBalance();
                 
             } catch (err) {
-                console.error('Wallet connection failed:', err);
-                alert('Failed to connect wallet: ' + err.message);
+                console.error('Wallet connection error:', err);
+                console.error('Error details:', err.code, err.message);
+                
+                if (err.code === 4001) {
+                    alert('❌ Connection rejected\n\nYou declined the connection request in Phantom.\nPlease try again and approve the connection.');
+                } else if (err.code === -32002) {
+                    alert('⏳ Connection request pending\n\nPlease check Phantom - there may be a pending connection request.');
+                } else {
+                    alert('❌ Connection failed\n\nError: ' + (err.message || 'Unknown error') + '\n\nPlease:\n1. Make sure Phantom is unlocked\n2. Try refreshing the page\n3. Try again');
+                }
             }
         }
         
