@@ -7,7 +7,7 @@ from datetime import datetime
 import json
 import logging
 
-app = Flask(__name__, static_folder='src', static_url_path='')
+app = Flask(__name__)
 CORS(app)
 
 logging.basicConfig(level=logging.INFO)
