@@ -1011,8 +1011,11 @@
         function updatePositionsTable() {
             if (!demoPosition) return;
             
-            const tbody = document.querySelector('#positionsTable tbody');
-            if (!tbody) return;
+            const tbody = document.getElementById('positionsTable');
+            if (!tbody) {
+                console.error('positionsTable not found!');
+                return;
+            }
             
             const pnl = (demoPosition.currentPrice - demoPosition.entryPrice) * demoPosition.quantity;
             const pnlPercent = ((demoPosition.currentPrice - demoPosition.entryPrice) / demoPosition.entryPrice) * 100;
@@ -1052,7 +1055,7 @@
                 demoPriceUpdateInterval = null;
             }
             
-            const tbody = document.querySelector('#positionsTable tbody');
+            const tbody = document.getElementById('positionsTable');
             if (tbody) {
                 tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #888;">No active positions</td></tr>';
             }
