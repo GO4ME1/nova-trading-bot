@@ -107,37 +107,7 @@ def emergency_exit():
     bot_state["positions"] = []
     return jsonify({"status": "emergency_exit_complete"})
 
-@app.route('/api/wallet/balance', methods=['POST'])
-def get_wallet_balance():
-    data = request.json or {}
-    wallet_address = data.get('wallet_address')
-    
-    if not wallet_address:
-        return jsonify({"error": "Wallet address required"}), 400
-    
-    try:
-        # Get SOL balance from Helius
-        helius_url = f"https://mainnet.helius-rpc.com/?api-key={HELIUS_API_KEY}"
-        response = requests.post(helius_url, json={
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "getBalance",
-            "params": [wallet_address]
-        }, timeout=10)
-        
-        sol_balance = 0
-        if response.ok:
-            data = response.json()
-            sol_balance = data.get('result', {}).get('value', 0) / 1e9  # Convert lamports to SOL
-        
-        bot_state["wallet_balance_sol"] = sol_balance
-        
-        return jsonify({
-            "sol": sol_balance,
-            "usdc": 0  # Would need to query token accounts for USDC
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+# Removed duplicate get_wallet_balance function - using the one at line 44 instead
 
 @app.route('/api/tokens/scan', methods=['POST'])
 def scan_tokens():
