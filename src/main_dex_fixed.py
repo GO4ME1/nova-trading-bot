@@ -36,9 +36,49 @@ bot_state = {
 def index():
     return send_from_directory('.', 'index.html')
 
+@app.route('/api/wallet/balance/<wallet_address>', methods=['GET'])
+def get_wallet_balance_get(wallet_address):
+    """Get wallet balance via Helius RPC (GET method for frontend)"""
+    try:
+        if not wallet_address:
+            return jsonify({'error': 'Wallet address required'}), 400
+        
+        logger.info(f"Fetching balance for wallet: {wallet_address}")
+        
+        # Use public Solana RPC (no API key needed for basic balance check)
+        response = requests.post(
+            "https://api.mainnet-beta.solana.com",
+            json={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "getBalance",
+                "params": [wallet_address]
+            },
+            headers={'Content-Type': 'application/json'},
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            if 'result' in result:
+                balance_lamports = result['result']['value']
+                balance_sol = balance_lamports / 1_000_000_000
+                logger.info(f"Balance fetched: {balance_sol} SOL")
+                return jsonify({
+                    'sol': balance_sol,
+                    'usdc': 0  # Frontend expects this
+                })
+        
+        logger.error(f"RPC error: {response.text}")
+        return jsonify({'error': 'Failed to fetch balance'}), 500
+        
+    except Exception as e:
+        logger.error(f"Balance fetch error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/wallet/balance', methods=['POST'])
 def get_wallet_balance():
-    """Proxy endpoint to get wallet balance via Helius RPC"""
+    """Proxy endpoint to get wallet balance via Helius RPC (POST method - legacy)"""
     try:
         data = request.json
         wallet_address = data.get('walletAddress')
