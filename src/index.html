@@ -874,13 +874,19 @@
                     
                     // Check if any token meets trade criteria
                     // Stricter criteria for new tokens, more lenient for established
-                    const minSafety = category === 'established' ? 90 : 85;
-                    const minChange = category === 'established' ? 5 : 8;
+                    const minSafety = category === 'established' ? 85 : 85;
+                    const minChange = category === 'established' ? 2 : 8;  // Lowered to 2% for demo
+                    
+                    // After 10 scans, execute on best available token regardless of criteria
+                    const forceExecute = scanCount >= 10;
                     
                     for (const token of data.tokens) {
-                        if (!demoTradeExecuted && token.scam_score >= minSafety && Math.abs(token.change_24h) > minChange) {
+                        const meetsCriteria = token.scam_score >= minSafety && Math.abs(token.change_24h) > minChange;
+                        
+                        if (!demoTradeExecuted && (meetsCriteria || forceExecute)) {
                             const tokenType = category === 'established' ? 'established token' : 'new opportunity';
-                            addToFeed(`🎯 Found ${tokenType}: ${token.symbol} - ${token.change_24h > 0 ? 'Strong momentum' : 'Potential reversal'}!`);
+                            const reason = forceExecute ? 'best available' : (token.change_24h > 0 ? 'Strong momentum' : 'Potential reversal');
+                            addToFeed(`🎯 Found ${tokenType}: ${token.symbol} - ${reason}!`);
                             
                             // Cancel the scheduled demo trade and execute immediately
                             if (demoTradeTimeout) {
