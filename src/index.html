@@ -447,8 +447,8 @@
         let maxPositions = 2;
         let positionSize = 25; // $25 per position
         
-        // Solana connection
-        const connection = new solanaWeb3.Connection('https://api.mainnet-beta.solana.com');
+        // Solana connection (using backend proxy to avoid CORS and rate limits)
+        // const connection = new solanaWeb3.Connection('https://api.mainnet-beta.solana.com');
         
         // SOL token mint address
         const SOL_MINT = 'So11111111111111111111111111111111111111112';
@@ -543,14 +543,24 @@
             }
             
             try {
-                const pubkey = new solanaWeb3.PublicKey(walletAddress);
-                const balance = await connection.getBalance(pubkey);
-                const solBalance = balance / solanaWeb3.LAMPORTS_PER_SOL;
+                // Use backend API to fetch balance (avoids CORS and rate limits)
+                const response = await fetch(`/api/wallet/balance/${walletAddress}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                const solBalance = data.sol || 0;
+                const usdcBalance = data.usdc || 0;
                 
                 document.getElementById('solBalance').textContent = solBalance.toFixed(4);
-                
-                // TODO: Fetch USDC balance
-                document.getElementById('usdcBalance').textContent = '0.00';
+                document.getElementById('usdcBalance').textContent = usdcBalance.toFixed(2);
                 
                 addToFeed(`💰 Balance updated: ${solBalance.toFixed(4)} SOL`);
                 
@@ -558,14 +568,8 @@
                 console.error('Balance fetch error:', err);
                 addToFeed('⚠️ Failed to fetch balance: ' + err.message);
                 
-                // Reset connection on balance fetch error
-                walletConnected = false;
-                walletAddress = null;
-                provider = null;
-                document.getElementById('walletStatus').textContent = '🔴 NOT CONNECTED';
-                document.getElementById('walletStatus').className = 'status-badge disconnected';
-                document.getElementById('connectWalletBtn').style.display = 'inline-block';
-                document.getElementById('disconnectWalletBtn').style.display = 'none';
+                // Don't reset connection on balance fetch error, just show error
+                // User can try refreshing manually
             }
         }
         

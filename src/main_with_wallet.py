@@ -41,6 +41,35 @@ def index():
 def health():
     return jsonify({"status": "ok", "timestamp": datetime.now().isoformat()})
 
+@app.route('/api/wallet/balance/<wallet_address>', methods=['GET'])
+def get_wallet_balance(wallet_address):
+    """Get SOL balance for a wallet using Helius RPC"""
+    try:
+        helius_url = f"https://mainnet.helius-rpc.com/?api-key={HELIUS_API_KEY}"
+        
+        # Get SOL balance
+        response = requests.post(helius_url, json={
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "getBalance",
+            "params": [wallet_address]
+        })
+        
+        if response.status_code == 200:
+            data = response.json()
+            if 'result' in data:
+                lamports = data['result']['value']
+                sol_balance = lamports / 1_000_000_000  # Convert lamports to SOL
+                return jsonify({
+                    "sol": sol_balance,
+                    "usdc": 0.00  # TODO: Implement USDC balance
+                })
+        
+        return jsonify({"error": "Failed to fetch balance"}), 500
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/api/bot/status', methods=['GET'])
 def get_status():
     return jsonify(bot_state)
