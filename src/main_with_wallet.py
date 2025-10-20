@@ -16,6 +16,7 @@ RESERVE_WALLET = "Az6NNWG54E71hQfPxSPBU3tp98SU7ivfwEUb2AEhrSSu"
 # Bot state
 bot_state = {
     "active": False,
+    "paused": False,
     "trading_capital": 50.00,
     "reserve_balance": 0.00,
     "total_profit": 0.00,
@@ -26,7 +27,10 @@ bot_state = {
     "trades": [],
     "connected_wallet": None,
     "wallet_balance_sol": 0,
-    "wallet_balance_usdc": 0
+    "wallet_balance_usdc": 0,
+    "last_scan_time": None,
+    "scanning": False,
+    "last_activity": "Initialized"
 }
 
 @app.route('/')
@@ -50,12 +54,22 @@ def start_bot():
         return jsonify({"error": "Wallet address required"}), 400
     
     bot_state["active"] = True
+    bot_state["paused"] = False
     bot_state["connected_wallet"] = wallet_address
+    bot_state["last_activity"] = "Bot started - scanning for tokens"
     return jsonify({"status": "started", "wallet": wallet_address})
+
+@app.route('/api/bot/pause', methods=['POST'])
+def pause_bot():
+    bot_state["active"] = False
+    bot_state["paused"] = True
+    return jsonify({"status": "paused"})
 
 @app.route('/api/bot/stop', methods=['POST'])
 def stop_bot():
     bot_state["active"] = False
+    bot_state["paused"] = False
+    bot_state["positions"] = []
     return jsonify({"status": "stopped"})
 
 @app.route('/api/bot/emergency_exit', methods=['POST'])

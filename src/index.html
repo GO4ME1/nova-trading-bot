@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nova - Ultimate Trading Bot</title>
-    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -84,6 +83,12 @@
             border: 1px solid #ef4444;
         }
         
+        .status-badge.paused {
+            background: rgba(251, 191, 36, 0.2);
+            color: #fbbf24;
+            border: 1px solid #fbbf24;
+        }
+        
         .wallet-address {
             font-family: 'Courier New', monospace;
             color: #60a5fa;
@@ -123,12 +128,18 @@
             transition: all 0.3s ease;
         }
         
+        button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        
         .btn-primary {
             background: linear-gradient(135deg, #3b82f6, #8b5cf6);
             color: white;
         }
         
-        .btn-primary:hover {
+        .btn-primary:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 10px 25px rgba(59, 130, 246, 0.4);
         }
@@ -214,6 +225,38 @@
             font-size: 12px;
             margin-bottom: 5px;
         }
+        
+        .warning-message {
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            color: #fbbf24;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+        
+        .scanning-indicator {
+            display: inline-block;
+            margin-left: 10px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        
+        .activity-indicator {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: #22c55e;
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin-top: 10px;
+            font-size: 13px;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -225,6 +268,10 @@
         
         <!-- Wallet Connection Section -->
         <div class="wallet-section">
+            <div id="phantomWarning" class="warning-message" style="display: none;">
+                ⏳ Waiting for Phantom wallet to load...
+            </div>
+            
             <div class="wallet-status">
                 <span id="walletStatus" class="status-badge disconnected">🔴 NOT CONNECTED</span>
                 <span id="walletAddress" class="wallet-address"></span>
@@ -252,13 +299,17 @@
         <!-- Rest of the UI -->
         <div class="grid">
             <div class="card">
-                <div class="card-title">🤖 Bot Status</div>
+                <div class="card-title">
+                    🤖 Bot Status
+                    <span id="scanningIndicator" class="scanning-indicator" style="display: none;">🔍</span>
+                </div>
                 <span id="botStatus" class="status-badge disconnected">Inactive</span>
+                <div id="activityIndicator" class="activity-indicator">Initializing...</div>
                 <div class="button-group">
-                    <button class="btn-success" onclick="startBot()">🚀 Start Bot</button>
-                    <button class="btn-primary" onclick="pauseBot()">⏸️ Pause</button>
-                    <button class="btn-danger" onclick="stopBot()">🛑 Stop & Sell All</button>
-                    <button class="btn-danger" onclick="emergencyExit()">🚨 Emergency Exit</button>
+                    <button id="startBtn" class="btn-success" onclick="startBot()">🚀 Start Bot</button>
+                    <button id="pauseBtn" class="btn-primary" onclick="pauseBot()" disabled>⏸️ Pause</button>
+                    <button id="stopBtn" class="btn-danger" onclick="stopBot()" disabled>🛑 Stop & Sell All</button>
+                    <button id="emergencyBtn" class="btn-danger" onclick="emergencyExit()" disabled>🚨 Emergency Exit</button>
                 </div>
             </div>
             
@@ -322,75 +373,234 @@
     <script>
         let walletConnected = false;
         let walletAddress = null;
+        let botActive = false;
+        let botPaused = false;
+        let statusPollInterval = null;
+        
+        // Update button states based on bot status
+        function updateButtonStates() {
+            const startBtn = document.getElementById('startBtn');
+            const pauseBtn = document.getElementById('pauseBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            const emergencyBtn = document.getElementById('emergencyBtn');
+            
+            if (!walletConnected) {
+                // Wallet not connected - disable all bot buttons
+                startBtn.disabled = true;
+                pauseBtn.disabled = true;
+                stopBtn.disabled = true;
+                emergencyBtn.disabled = true;
+            } else if (botActive) {
+                // Bot is active - can pause, stop, or emergency exit
+                startBtn.disabled = true;
+                pauseBtn.disabled = false;
+                stopBtn.disabled = false;
+                emergencyBtn.disabled = false;
+            } else if (botPaused) {
+                // Bot is paused - can start or stop
+                startBtn.disabled = false;
+                pauseBtn.disabled = true;
+                stopBtn.disabled = false;
+                emergencyBtn.disabled = false;
+            } else {
+                // Bot is inactive - can only start
+                startBtn.disabled = false;
+                pauseBtn.disabled = true;
+                stopBtn.disabled = true;
+                emergencyBtn.disabled = true;
+            }
+        }
+        
+        // Poll bot status every 2 seconds
+        function startStatusPolling() {
+            if (statusPollInterval) return; // Already polling
+            
+            statusPollInterval = setInterval(async () => {
+                try {
+                    const response = await fetch('/api/bot/status');
+                    const data = await response.json();
+                    
+                    // Update bot state
+                    botActive = data.active;
+                    botPaused = data.paused;
+                    
+                    // Update UI
+                    if (data.active) {
+                        document.getElementById('botStatus').className = 'status-badge connected';
+                        document.getElementById('botStatus').textContent = 'Active';
+                        document.getElementById('scanningIndicator').style.display = 'inline-block';
+                        document.getElementById('activityIndicator').style.display = 'block';
+                        document.getElementById('activityIndicator').textContent = data.last_activity || 'Scanning for tokens...';
+                    } else if (data.paused) {
+                        document.getElementById('botStatus').className = 'status-badge paused';
+                        document.getElementById('botStatus').textContent = 'Paused';
+                        document.getElementById('scanningIndicator').style.display = 'none';
+                        document.getElementById('activityIndicator').style.display = 'block';
+                        document.getElementById('activityIndicator').textContent = 'Bot paused - positions maintained';
+                    } else {
+                        document.getElementById('botStatus').className = 'status-badge disconnected';
+                        document.getElementById('botStatus').textContent = 'Inactive';
+                        document.getElementById('scanningIndicator').style.display = 'none';
+                        document.getElementById('activityIndicator').style.display = 'none';
+                    }
+                    
+                    // Update capital and performance
+                    document.getElementById('tradingCapital').textContent = '$' + data.trading_capital.toFixed(2);
+                    document.getElementById('reserveBalance').textContent = '$' + data.reserve_balance.toFixed(2);
+                    document.getElementById('totalProfit').textContent = '$' + data.total_profit.toFixed(2);
+                    
+                    // Update win rate
+                    const winRate = data.total_trades > 0 ? ((data.wins / data.total_trades) * 100).toFixed(1) : 0;
+                    document.getElementById('winRate').textContent = winRate + '%';
+                    document.getElementById('tradeStats').textContent = 
+                        `${data.total_trades} trades (${data.wins} wins, ${data.losses} losses)`;
+                    
+                    // Update positions
+                    document.getElementById('positionCount').textContent = data.positions.length;
+                    
+                    // Update button states
+                    updateButtonStates();
+                    
+                } catch (err) {
+                    console.error('Failed to poll status:', err);
+                }
+            }, 2000); // Poll every 2 seconds
+        }
+        
+        function stopStatusPolling() {
+            if (statusPollInterval) {
+                clearInterval(statusPollInterval);
+                statusPollInterval = null;
+            }
+        }
         
         async function connectWallet() {
+            const connectBtn = document.getElementById('connectWalletBtn');
+            connectBtn.disabled = true;
+            connectBtn.textContent = '🔄 Connecting...';
+            
             try {
-                console.log('Attempting to connect wallet...');
-                console.log('window.solana:', window.solana);
-                
                 // Check if Phantom is installed
-                if (typeof window.solana === 'undefined') {
-                    alert('⚠️ Phantom wallet not detected!\n\nPlease:\n1. Install Phantom from https://phantom.app\n2. Refresh this page\n3. Try connecting again');
-                    window.open('https://phantom.app/download', '_blank');
+                if (typeof window.solana === 'undefined' || !window.solana.isPhantom) {
+                    const installPhantom = confirm(
+                        '⚠️ Phantom wallet not detected!\n\n' +
+                        'Please install Phantom wallet extension to use this bot.\n\n' +
+                        'Click OK to open the Phantom download page.'
+                    );
+                    
+                    if (installPhantom) {
+                        window.open('https://phantom.app/download', '_blank');
+                    }
+                    
+                    connectBtn.disabled = false;
+                    connectBtn.textContent = '🔗 Connect Phantom Wallet';
                     return;
                 }
-                
-                if (!window.solana.isPhantom) {
-                    alert('⚠️ Please use Phantom wallet!');
-                    return;
-                }
-                
-                console.log('Phantom detected, connecting...');
                 
                 // Request connection
                 const resp = await window.solana.connect();
-                console.log('Connection response:', resp);
+                
+                if (!resp || !resp.publicKey) {
+                    throw new Error('No public key returned from connection');
+                }
                 
                 walletAddress = resp.publicKey.toString();
                 walletConnected = true;
                 
                 console.log('✅ Wallet connected:', walletAddress);
                 
-                // Update UI
-                document.getElementById('walletStatus').className = 'status-badge connected';
-                document.getElementById('walletStatus').textContent = '🟢 CONNECTED';
-                document.getElementById('walletAddress').textContent = walletAddress.slice(0, 4) + '...' + walletAddress.slice(-4);
-                document.getElementById('connectWalletBtn').style.display = 'none';
-                document.getElementById('disconnectWalletBtn').style.display = 'inline-block';
-                document.getElementById('walletBalance').style.display = 'flex';
-                
+                updateWalletUI();
                 addToFeed('🔗 Wallet connected: ' + walletAddress.slice(0, 8) + '...');
                 
                 // Get wallet balance
                 await updateWalletBalance();
                 
+                // Start polling bot status
+                startStatusPolling();
+                
+                // Listen for disconnect
+                window.solana.on('disconnect', () => {
+                    console.log('Wallet disconnected by user');
+                    disconnectWallet();
+                });
+                
+                // Listen for account change
+                window.solana.on('accountChanged', (publicKey) => {
+                    if (publicKey) {
+                        console.log('Account changed to:', publicKey.toString());
+                        walletAddress = publicKey.toString();
+                        updateWalletUI();
+                        updateWalletBalance();
+                        addToFeed('🔄 Account changed: ' + walletAddress.slice(0, 8) + '...');
+                    } else {
+                        disconnectWallet();
+                    }
+                });
+                
             } catch (err) {
                 console.error('Wallet connection error:', err);
-                console.error('Error details:', err.code, err.message);
+                
+                let errorMessage = 'Failed to connect wallet';
                 
                 if (err.code === 4001) {
-                    alert('❌ Connection rejected\n\nYou declined the connection request in Phantom.\nPlease try again and approve the connection.');
+                    errorMessage = '❌ Connection Rejected\n\nYou declined the connection request.\nPlease try again and approve the connection in Phantom.';
                 } else if (err.code === -32002) {
-                    alert('⏳ Connection request pending\n\nPlease check Phantom - there may be a pending connection request.');
+                    errorMessage = '⏳ Request Pending\n\nPlease check Phantom - there may be a pending connection request.';
+                } else if (err.message && err.message.includes('User rejected')) {
+                    errorMessage = '❌ Connection Rejected\n\nYou declined the connection request.\nPlease try again and approve the connection in Phantom.';
                 } else {
-                    alert('❌ Connection failed\n\nError: ' + (err.message || 'Unknown error') + '\n\nPlease:\n1. Make sure Phantom is unlocked\n2. Try refreshing the page\n3. Try again');
+                    errorMessage = '❌ Connection Failed\n\n' + 
+                        'Error: ' + (err.message || 'Unknown error') + '\n\n' +
+                        'Troubleshooting:\n' +
+                        '1. Make sure Phantom is unlocked\n' +
+                        '2. Try refreshing the page\n' +
+                        '3. Check if Phantom is updated to the latest version';
                 }
+                
+                alert(errorMessage);
+                
+                connectBtn.disabled = false;
+                connectBtn.textContent = '🔗 Connect Phantom Wallet';
             }
         }
         
+        function updateWalletUI() {
+            document.getElementById('walletStatus').className = 'status-badge connected';
+            document.getElementById('walletStatus').textContent = '🟢 CONNECTED';
+            document.getElementById('walletAddress').textContent = 
+                walletAddress.slice(0, 4) + '...' + walletAddress.slice(-4);
+            document.getElementById('connectWalletBtn').style.display = 'none';
+            document.getElementById('disconnectWalletBtn').style.display = 'inline-block';
+            document.getElementById('walletBalance').style.display = 'flex';
+            
+            updateButtonStates();
+        }
+        
         async function disconnectWallet() {
-            if (window.solana) {
-                await window.solana.disconnect();
+            try {
+                if (window.solana && window.solana.isConnected) {
+                    await window.solana.disconnect();
+                }
+            } catch (err) {
+                console.error('Error disconnecting:', err);
             }
+            
             walletConnected = false;
             walletAddress = null;
+            botActive = false;
+            botPaused = false;
             
             document.getElementById('walletStatus').className = 'status-badge disconnected';
             document.getElementById('walletStatus').textContent = '🔴 NOT CONNECTED';
             document.getElementById('walletAddress').textContent = '';
             document.getElementById('connectWalletBtn').style.display = 'inline-block';
+            document.getElementById('connectWalletBtn').disabled = false;
+            document.getElementById('connectWalletBtn').textContent = '🔗 Connect Phantom Wallet';
             document.getElementById('disconnectWalletBtn').style.display = 'none';
             document.getElementById('walletBalance').style.display = 'none';
+            
+            stopStatusPolling();
+            updateButtonStates();
             
             addToFeed('🔌 Wallet disconnected');
         }
@@ -415,7 +625,7 @@
         
         async function startBot() {
             if (!walletConnected) {
-                alert('Please connect your wallet first!');
+                alert('⚠️ Please connect your wallet first!');
                 return;
             }
             
@@ -427,31 +637,82 @@
                 });
                 
                 const data = await response.json();
+                botActive = true;
+                botPaused = false;
+                
                 document.getElementById('botStatus').className = 'status-badge connected';
                 document.getElementById('botStatus').textContent = 'Active';
+                document.getElementById('scanningIndicator').style.display = 'inline-block';
+                document.getElementById('activityIndicator').style.display = 'block';
+                document.getElementById('activityIndicator').textContent = 'Starting bot - scanning for tokens...';
+                
+                updateButtonStates();
                 addToFeed('🚀 Bot started with wallet: ' + walletAddress.slice(0, 8) + '...');
             } catch (err) {
                 alert('Failed to start bot: ' + err.message);
             }
         }
         
-        async function stopBot() {
+        async function pauseBot() {
             try {
-                await fetch('/api/bot/stop', { method: 'POST' });
+                const response = await fetch('/api/bot/pause', { method: 'POST' });
+                const data = await response.json();
+                
+                botActive = false;
+                botPaused = true;
+                
+                document.getElementById('botStatus').className = 'status-badge paused';
+                document.getElementById('botStatus').textContent = 'Paused';
+                document.getElementById('scanningIndicator').style.display = 'none';
+                document.getElementById('activityIndicator').style.display = 'block';
+                document.getElementById('activityIndicator').textContent = 'Bot paused - positions maintained';
+                
+                updateButtonStates();
+                addToFeed('⏸️ Bot paused - positions maintained');
+            } catch (err) {
+                alert('Failed to pause bot: ' + err.message);
+            }
+        }
+        
+        async function stopBot() {
+            if (!confirm('⚠️ Stop bot and sell all positions?')) return;
+            
+            try {
+                const response = await fetch('/api/bot/stop', { method: 'POST' });
+                const data = await response.json();
+                
+                botActive = false;
+                botPaused = false;
+                
                 document.getElementById('botStatus').className = 'status-badge disconnected';
                 document.getElementById('botStatus').textContent = 'Inactive';
-                addToFeed('🛑 Bot stopped');
+                document.getElementById('scanningIndicator').style.display = 'none';
+                document.getElementById('activityIndicator').style.display = 'none';
+                
+                updateButtonStates();
+                addToFeed('🛑 Bot stopped - all positions sold');
             } catch (err) {
                 alert('Failed to stop bot: ' + err.message);
             }
         }
         
         async function emergencyExit() {
-            if (!confirm('Emergency exit will sell all positions immediately. Continue?')) return;
+            if (!confirm('🚨 EMERGENCY EXIT: Sell all positions immediately?')) return;
             
             try {
-                await fetch('/api/bot/emergency_exit', { method: 'POST' });
-                addToFeed('🚨 Emergency exit executed!');
+                const response = await fetch('/api/bot/emergency_exit', { method: 'POST' });
+                const data = await response.json();
+                
+                botActive = false;
+                botPaused = false;
+                
+                document.getElementById('botStatus').className = 'status-badge disconnected';
+                document.getElementById('botStatus').textContent = 'Inactive';
+                document.getElementById('scanningIndicator').style.display = 'none';
+                document.getElementById('activityIndicator').style.display = 'none';
+                
+                updateButtonStates();
+                addToFeed('🚨 Emergency exit executed - all positions liquidated!');
             } catch (err) {
                 alert('Failed to execute emergency exit: ' + err.message);
             }
@@ -459,7 +720,7 @@
         
         async function withdrawReserve() {
             if (!walletConnected) {
-                alert('Please connect your wallet first!');
+                alert('⚠️ Please connect your wallet first!');
                 return;
             }
             
@@ -475,6 +736,58 @@
                     alert(data.error);
                 } else {
                     addToFeed('💸 ' + data.message);
+                    await updateWalletBalance();
+                }
+            } catch (err) {
+                alert('Failed to withdraw: ' + err.message);
+            }
+        }
+        
+        async function withdrawAll() {
+            if (!walletConnected) {
+                alert('⚠️ Please connect your wallet first!');
+                return;
+            }
+            
+            if (!confirm('💰 Withdraw all funds to your wallet?')) return;
+            
+            try {
+                const response = await fetch('/api/withdraw/all', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ wallet_address: walletAddress })
+                });
+                
+                const data = await response.json();
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    addToFeed('💰 ' + data.message);
+                    await updateWalletBalance();
+                }
+            } catch (err) {
+                alert('Failed to withdraw: ' + err.message);
+            }
+        }
+        
+        async function withdrawProfits() {
+            if (!walletConnected) {
+                alert('⚠️ Please connect your wallet first!');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/withdraw/profits', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ wallet_address: walletAddress })
+                });
+                
+                const data = await response.json();
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    addToFeed('📈 ' + data.message);
                     await updateWalletBalance();
                 }
             } catch (err) {
@@ -499,15 +812,22 @@
         }
         
         // Initialize
-        addToFeed('💵 Starting capital: $50.00');
-        addToFeed('💰 Reserve wallet: Az6NNWG5...');
-        addToFeed('🔗 APIs connected: Helius, Birdeye, Jupiter, DexScreener');
-        addToFeed('✨ Nova Ultimate initialized!');
-        
-        // Auto-connect if Phantom is already connected
-        if (window.solana && window.solana.isConnected) {
-            connectWallet();
-        }
+        window.addEventListener('load', () => {
+            console.log('Page loaded, initializing...');
+            
+            addToFeed('💵 Starting capital: $50.00');
+            addToFeed('💰 Reserve wallet: Az6NNWG5...');
+            addToFeed('🔗 APIs connected: Helius, Birdeye, Jupiter, DexScreener');
+            addToFeed('✨ Nova Ultimate initialized!');
+            
+            updateButtonStates();
+            
+            // Auto-connect if Phantom is already connected
+            if (window.solana && window.solana.isConnected && window.solana.publicKey) {
+                console.log('Auto-connecting to previously authorized wallet...');
+                connectWallet();
+            }
+        });
     </script>
 </body>
 </html>
