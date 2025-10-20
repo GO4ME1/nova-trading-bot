@@ -143,7 +143,78 @@ def scan_tokens():
             
             return jsonify({"tokens": tokens[:10]})
         
-        return jsonify({"tokens": []})
+        # Get new/trending tokens from Birdeye API
+        headers = {'X-API-KEY': BIRDEYE_API_KEY}
+        
+        if category == 'ultra_new':
+            # Tokens created in last 1 hour
+            url = 'https://public-api.birdeye.so/defi/token_creation?chain=solana&sort_by=creation_time&sort_type=desc&offset=0&limit=20'
+        elif category == 'very_new':
+            # Tokens created in last 6 hours
+            url = 'https://public-api.birdeye.so/defi/token_creation?chain=solana&sort_by=creation_time&sort_type=desc&offset=0&limit=20'
+        elif category == 'fresh':
+            # Tokens created in last 24 hours
+            url = 'https://public-api.birdeye.so/defi/token_creation?chain=solana&sort_by=creation_time&sort_type=desc&offset=0&limit=20'
+        elif category == 'top_gainers':
+            # Top gainers by 24h change
+            url = 'https://public-api.birdeye.so/defi/token_trending?chain=solana&sort_by=rank&sort_type=asc&offset=0&limit=20'
+        elif category == 'trending':
+            # Trending by volume
+            url = 'https://public-api.birdeye.so/defi/token_trending?chain=solana&sort_by=rank&sort_type=asc&offset=0&limit=20'
+        else:
+            return jsonify({"tokens": []})
+        
+        response = requests.get(url, headers=headers, timeout=10)
+        
+        if not response.ok:
+            return jsonify({"tokens": []})
+        
+        data = response.json()
+        tokens_data = data.get('data', {}).get('items', []) or data.get('data', [])
+        
+        tokens = []
+        for token_data in tokens_data[:10]:
+            # Get token details
+            address = token_data.get('address', '')
+            if not address:
+                continue
+                
+            # Fetch price and details from DexScreener
+            dex_response = requests.get(
+                f'https://api.dexscreener.com/latest/dex/tokens/{address}',
+                timeout=5
+            )
+            
+            if dex_response.ok:
+                dex_data = dex_response.json()
+                pairs = dex_data.get('pairs', [])
+                solana_pairs = [p for p in pairs if p.get('chainId') == 'solana']
+                
+                if solana_pairs:
+                    best_pair = max(solana_pairs, key=lambda x: float(x.get('liquidity', {}).get('usd', 0)))
+                    
+                    # Calculate age
+                    created_at = token_data.get('createdAt', 0) or best_pair.get('pairCreatedAt', 0)
+                    age_hours = (time.time() * 1000 - created_at) / (1000 * 3600) if created_at else 999
+                    
+                    # Calculate scam score (simplified)
+                    liquidity = float(best_pair.get('liquidity', {}).get('usd', 0))
+                    volume = float(best_pair.get('volume', {}).get('h24', 0))
+                    scam_score = min(95, max(50, int(70 + (liquidity / 10000) + (volume / 50000))))
+                    
+                    tokens.append({
+                        'symbol': best_pair.get('baseToken', {}).get('symbol', 'UNKNOWN'),
+                        'name': best_pair.get('baseToken', {}).get('name', 'Unknown'),
+                        'address': address,
+                        'price': float(best_pair.get('priceUsd', 0)),
+                        'change_24h': float(best_pair.get('priceChange', {}).get('h24', 0)),
+                        'volume_24h': volume,
+                        'liquidity': liquidity,
+                        'age_hours': age_hours,
+                        'scam_score': scam_score
+                    })
+        
+        return jsonify({"tokens": tokens})
     
     except Exception as e:
         return jsonify({"error": str(e), "tokens": []}), 500
