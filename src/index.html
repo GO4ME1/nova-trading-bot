@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nova - Ultimate Trading Bot</title>
+    
+    <!-- Solana Web3.js -->
+    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+    
     <style>
         * {
             margin: 0;
@@ -40,6 +44,10 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
         }
         
         .subtitle {
@@ -49,57 +57,48 @@
         
         .wallet-section {
             background: rgba(30, 41, 59, 0.5);
-            border: 1px solid rgba(99, 102, 241, 0.3);
-            border-radius: 15px;
             padding: 25px;
+            border-radius: 15px;
             margin-bottom: 30px;
-            text-align: center;
+            border: 1px solid rgba(99, 102, 241, 0.3);
         }
         
         .wallet-status {
             display: flex;
+            flex-direction: column;
             align-items: center;
-            justify-content: center;
             gap: 15px;
-            margin-bottom: 20px;
         }
         
         .status-badge {
-            padding: 8px 16px;
+            padding: 8px 20px;
             border-radius: 20px;
-            font-size: 14px;
             font-weight: 600;
+            font-size: 14px;
         }
         
-        .status-badge.connected {
+        .connected {
             background: rgba(34, 197, 94, 0.2);
             color: #22c55e;
             border: 1px solid #22c55e;
         }
         
-        .status-badge.disconnected {
+        .disconnected {
             background: rgba(239, 68, 68, 0.2);
             color: #ef4444;
             border: 1px solid #ef4444;
         }
         
-        .status-badge.paused {
-            background: rgba(251, 191, 36, 0.2);
-            color: #fbbf24;
-            border: 1px solid #fbbf24;
-        }
-        
         .wallet-address {
             font-family: 'Courier New', monospace;
-            color: #60a5fa;
             font-size: 14px;
+            color: #94a3b8;
         }
         
-        .wallet-balance {
+        .balance-display {
             display: flex;
             gap: 30px;
-            justify-content: center;
-            margin: 20px 0;
+            margin-top: 15px;
         }
         
         .balance-item {
@@ -107,8 +106,8 @@
         }
         
         .balance-label {
-            color: #94a3b8;
             font-size: 12px;
+            color: #64748b;
             margin-bottom: 5px;
         }
         
@@ -120,18 +119,12 @@
         
         button {
             padding: 12px 24px;
-            border: none;
             border-radius: 10px;
-            font-size: 16px;
+            border: none;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        
-        button:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-            transform: none !important;
+            transition: all 0.3s;
+            font-size: 14px;
         }
         
         .btn-primary {
@@ -139,206 +132,269 @@
             color: white;
         }
         
-        .btn-primary:hover:not(:disabled) {
+        .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(59, 130, 246, 0.4);
+            box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3);
         }
         
         .btn-danger {
-            background: linear-gradient(135deg, #ef4444, #dc2626);
+            background: #ef4444;
             color: white;
         }
         
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+        
         .btn-success {
-            background: linear-gradient(135deg, #10b981, #059669);
+            background: #22c55e;
             color: white;
+        }
+        
+        .btn-warning {
+            background: #f59e0b;
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #6366f1;
+            color: white;
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
         
         .grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
             gap: 20px;
             margin-bottom: 30px;
         }
         
         .card {
             background: rgba(30, 41, 59, 0.5);
-            border: 1px solid rgba(99, 102, 241, 0.3);
-            border-radius: 15px;
             padding: 25px;
+            border-radius: 15px;
+            border: 1px solid rgba(99, 102, 241, 0.3);
         }
         
         .card-title {
             font-size: 18px;
-            font-weight: 600;
+            font-weight: 700;
             margin-bottom: 20px;
             display: flex;
             align-items: center;
             gap: 10px;
         }
         
-        .value-large {
-            font-size: 36px;
-            font-weight: 700;
+        .status-indicator {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 15px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+        
+        .status-active {
+            background: rgba(34, 197, 94, 0.2);
             color: #22c55e;
-            margin: 10px 0;
         }
         
-        .value-label {
-            color: #94a3b8;
-            font-size: 14px;
+        .status-inactive {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
         }
         
-        .button-group {
+        .status-paused {
+            background: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
+        }
+        
+        .controls {
             display: flex;
             flex-wrap: wrap;
             gap: 10px;
             margin-top: 15px;
         }
         
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 15px;
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: 10px;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 5px;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #60a5fa;
+        }
+        
+        .profit {
+            color: #22c55e;
+        }
+        
+        .loss {
+            color: #ef4444;
+        }
+        
         table {
             width: 100%;
             border-collapse: collapse;
-        }
-        
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+            margin-top: 15px;
         }
         
         th {
-            color: #60a5fa;
+            background: rgba(99, 102, 241, 0.1);
+            padding: 12px;
+            text-align: left;
             font-weight: 600;
+            color: #a5b4fc;
+            font-size: 13px;
+        }
+        
+        td {
+            padding: 12px;
+            border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+            font-size: 14px;
         }
         
         .feed-item {
             padding: 12px;
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: 8px;
+            margin-bottom: 8px;
             border-left: 3px solid #3b82f6;
-            background: rgba(59, 130, 246, 0.1);
-            border-radius: 5px;
-            margin-bottom: 10px;
         }
         
         .feed-time {
-            color: #94a3b8;
-            font-size: 12px;
-            margin-bottom: 5px;
+            font-size: 11px;
+            color: #64748b;
+            margin-bottom: 4px;
         }
         
-        .warning-message {
-            background: rgba(251, 191, 36, 0.1);
-            border: 1px solid rgba(251, 191, 36, 0.3);
-            color: #fbbf24;
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            font-size: 14px;
+        #liveFeed {
+            max-height: 400px;
+            overflow-y: auto;
         }
         
-        .scanning-indicator {
+        .activity-indicator {
             display: inline-block;
-            margin-left: 10px;
-            animation: pulse 2s ease-in-out infinite;
+            padding: 8px 16px;
+            background: rgba(59, 130, 246, 0.2);
+            border-radius: 8px;
+            font-size: 13px;
+            color: #60a5fa;
+            margin-top: 10px;
         }
         
         @keyframes pulse {
             0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
+            50% { opacity: 0.5; }
         }
         
-        .activity-indicator {
-            background: rgba(34, 197, 94, 0.1);
-            border: 1px solid rgba(34, 197, 94, 0.3);
-            color: #22c55e;
-            padding: 8px 12px;
-            border-radius: 8px;
-            margin-top: 10px;
-            font-size: 13px;
-            display: none;
+        .scanning {
+            animation: pulse 1.5s ease-in-out infinite;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <div class="logo">✨ NOVA</div>
+            <div class="logo">
+                ✨ NOVA
+            </div>
             <div class="subtitle">Ultimate Solana Trading Bot</div>
         </div>
         
-        <!-- Wallet Connection Section -->
+        <!-- Wallet Connection -->
         <div class="wallet-section">
-            <div id="phantomWarning" class="warning-message" style="display: none;">
-                ⏳ Waiting for Phantom wallet to load...
-            </div>
-            
             <div class="wallet-status">
-                <span id="walletStatus" class="status-badge disconnected">🔴 NOT CONNECTED</span>
-                <span id="walletAddress" class="wallet-address"></span>
-            </div>
-            
-            <div id="walletBalance" class="wallet-balance" style="display: none;">
-                <div class="balance-item">
-                    <div class="balance-label">SOL Balance</div>
-                    <div class="balance-value" id="solBalance">0.00</div>
+                <div class="status-badge disconnected" id="walletStatus">🔴 NOT CONNECTED</div>
+                <div class="wallet-address" id="walletAddress"></div>
+                <div class="balance-display" id="balanceDisplay" style="display: none;">
+                    <div class="balance-item">
+                        <div class="balance-label">SOL Balance</div>
+                        <div class="balance-value" id="solBalance">0.0000</div>
+                    </div>
+                    <div class="balance-item">
+                        <div class="balance-label">USDC Balance</div>
+                        <div class="balance-value" id="usdcBalance">0.00</div>
+                    </div>
                 </div>
-                <div class="balance-item">
-                    <div class="balance-label">USDC Balance</div>
-                    <div class="balance-value" id="usdcBalance">0.00</div>
-                </div>
+                <button class="btn-primary" id="connectWalletBtn" onclick="connectWallet()">🔗 Connect Phantom Wallet</button>
+                <button class="btn-danger" id="disconnectWalletBtn" onclick="disconnectWallet()" style="display: none;">🔌 Disconnect Wallet</button>
             </div>
-            
-            <button id="connectWalletBtn" class="btn-primary" onclick="connectWallet()">
-                🔗 Connect Phantom Wallet
-            </button>
-            <button id="disconnectWalletBtn" class="btn-danger" onclick="disconnectWallet()" style="display: none;">
-                🔌 Disconnect Wallet
-            </button>
         </div>
         
-        <!-- Rest of the UI -->
+        <!-- Main Grid -->
         <div class="grid">
+            <!-- Bot Status & Controls -->
             <div class="card">
-                <div class="card-title">
-                    🤖 Bot Status
-                    <span id="scanningIndicator" class="scanning-indicator" style="display: none;">🔍</span>
-                </div>
-                <span id="botStatus" class="status-badge disconnected">Inactive</span>
-                <div id="activityIndicator" class="activity-indicator">Initializing...</div>
-                <div class="button-group">
-                    <button id="startBtn" class="btn-success" onclick="startBot()">🚀 Start Bot</button>
-                    <button id="pauseBtn" class="btn-primary" onclick="pauseBot()" disabled>⏸️ Pause</button>
-                    <button id="stopBtn" class="btn-danger" onclick="stopBot()" disabled>🛑 Stop & Sell All</button>
-                    <button id="emergencyBtn" class="btn-danger" onclick="emergencyExit()" disabled>🚨 Emergency Exit</button>
+                <div class="card-title">🤖 Bot Status <span class="scanning" id="scanningIndicator" style="display:none;">🔍</span></div>
+                <div class="status-indicator status-inactive" id="botStatusBadge">Inactive</div>
+                <div class="activity-indicator" id="activityIndicator">Bot started - scanning for tokens</div>
+                <div class="controls">
+                    <button class="btn-success" id="startBtn" onclick="startBot()">🚀 Start Bot</button>
+                    <button class="btn-warning" id="pauseBtn" onclick="pauseBot()" disabled>⏸️ Pause</button>
+                    <button class="btn-danger" id="stopBtn" onclick="stopBot()" disabled>🛑 Stop & Sell All</button>
+                    <button class="btn-danger" id="emergencyBtn" onclick="emergencyExit()" disabled>🚨 Emergency Exit</button>
                 </div>
             </div>
             
+            <!-- Capital Management -->
             <div class="card">
                 <div class="card-title">💰 Capital Management</div>
-                <div class="value-large" id="tradingCapital">$50.00</div>
-                <div class="value-label">Trading Capital (75%)</div>
-                <div class="value-large" id="reserveBalance" style="color: #10b981;">$0.00</div>
-                <div class="value-label">Reserve Balance (25%)</div>
-                <div class="button-group">
+                <div class="stat-item">
+                    <div class="stat-label">Trading Capital (75%)</div>
+                    <div class="stat-value" id="tradingCapital">$50.00</div>
+                </div>
+                <div class="stat-item" style="margin-top: 15px;">
+                    <div class="stat-label">Reserve Balance (25%)</div>
+                    <div class="stat-value" id="reserveBalance">$0.00</div>
+                </div>
+                <div class="controls" style="margin-top: 20px;">
                     <button class="btn-success" onclick="withdrawReserve()">💸 Withdraw Reserve</button>
                     <button class="btn-success" onclick="withdrawAll()">💰 Withdraw All</button>
-                    <button class="btn-success" onclick="withdrawProfits()">📈 Withdraw Profits</button>
+                    <button class="btn-success" onclick="withdrawProfits()">📈 Withdraw Profits Only</button>
                 </div>
             </div>
             
+            <!-- Performance -->
             <div class="card">
                 <div class="card-title">📊 Performance</div>
-                <div class="value-large" id="totalProfit">$0.00</div>
-                <div class="value-label">Total Profit</div>
-                <div style="margin-top: 15px;">
-                    <div>Win Rate: <span id="winRate">0%</span></div>
-                    <div id="tradeStats">0 trades (0 wins, 0 losses)</div>
+                <div class="stat-grid">
+                    <div class="stat-item">
+                        <div class="stat-label">Total Profit</div>
+                        <div class="stat-value profit" id="totalProfit">$0.00</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Win Rate: <span id="winRate">0%</span></div>
+                        <div class="stat-value" id="tradeStats">0 trades (0 wins, 0 losses)</div>
+                    </div>
                 </div>
             </div>
         </div>
         
+        <!-- Active Positions -->
         <div class="card">
-            <div class="card-title">📍 Active Positions (<span id="positionCount">0</span>)</div>
+            <div class="card-title">📍 Active Positions ( <span id="positionCount">0</span> )</div>
             <table>
                 <thead>
                     <tr>
@@ -357,506 +413,222 @@
             </table>
         </div>
         
+        <!-- Live Feed and Recent Trades -->
         <div class="grid">
             <div class="card">
                 <div class="card-title">📡 Live Feed</div>
-                <div id="liveFeed"></div>
+                <div id="liveFeed">
+                    <div class="feed-item">
+                        <div class="feed-time">Waiting to start...</div>
+                        <div>Connect wallet and start bot to begin trading</div>
+                    </div>
+                </div>
             </div>
             
             <div class="card">
                 <div class="card-title">📜 Recent Trades</div>
-                <div id="recentTrades">No trades yet</div>
+                <div id="recentTrades">
+                    <div style="text-align: center; color: #64748b; padding: 20px;">No trades yet</div>
+                </div>
             </div>
         </div>
     </div>
     
     <script>
+        // Global state
         let walletConnected = false;
         let walletAddress = null;
+        let provider = null;
         let botActive = false;
         let botPaused = false;
-        let statusPollInterval = null;
+        let scanInterval = null;
+        let scanCount = 0;
+        let positions = [];
+        let maxPositions = 2;
+        let positionSize = 25; // $25 per position
         
-        // Update button states based on bot status
-        function updateButtonStates() {
-            const startBtn = document.getElementById('startBtn');
-            const pauseBtn = document.getElementById('pauseBtn');
-            const stopBtn = document.getElementById('stopBtn');
-            const emergencyBtn = document.getElementById('emergencyBtn');
-            
-            if (!walletConnected) {
-                // Wallet not connected - disable all bot buttons
-                startBtn.disabled = true;
-                pauseBtn.disabled = true;
-                stopBtn.disabled = true;
-                emergencyBtn.disabled = true;
-            } else if (botActive) {
-                // Bot is active - can pause, stop, or emergency exit
-                startBtn.disabled = true;
-                pauseBtn.disabled = false;
-                stopBtn.disabled = false;
-                emergencyBtn.disabled = false;
-            } else if (botPaused) {
-                // Bot is paused - can start or stop
-                startBtn.disabled = false;
-                pauseBtn.disabled = true;
-                stopBtn.disabled = false;
-                emergencyBtn.disabled = false;
-            } else {
-                // Bot is inactive - can only start
-                startBtn.disabled = false;
-                pauseBtn.disabled = true;
-                stopBtn.disabled = true;
-                emergencyBtn.disabled = true;
-            }
-        }
+        // Solana connection
+        const connection = new solanaWeb3.Connection('https://api.mainnet-beta.solana.com');
         
-        // Poll bot status every 2 seconds
-        function startStatusPolling() {
-            if (statusPollInterval) return; // Already polling
-            
-            statusPollInterval = setInterval(async () => {
-                try {
-                    const response = await fetch('/api/bot/status');
-                    const data = await response.json();
-                    
-                    // Update bot state
-                    botActive = data.active;
-                    botPaused = data.paused;
-                    
-                    // Update UI
-                    if (data.active) {
-                        document.getElementById('botStatus').className = 'status-badge connected';
-                        document.getElementById('botStatus').textContent = 'Active';
-                        document.getElementById('scanningIndicator').style.display = 'inline-block';
-                        document.getElementById('activityIndicator').style.display = 'block';
-                        document.getElementById('activityIndicator').textContent = data.last_activity || 'Scanning for tokens...';
-                    } else if (data.paused) {
-                        document.getElementById('botStatus').className = 'status-badge paused';
-                        document.getElementById('botStatus').textContent = 'Paused';
-                        document.getElementById('scanningIndicator').style.display = 'none';
-                        document.getElementById('activityIndicator').style.display = 'block';
-                        document.getElementById('activityIndicator').textContent = 'Bot paused - positions maintained';
-                    } else {
-                        document.getElementById('botStatus').className = 'status-badge disconnected';
-                        document.getElementById('botStatus').textContent = 'Inactive';
-                        document.getElementById('scanningIndicator').style.display = 'none';
-                        document.getElementById('activityIndicator').style.display = 'none';
-                    }
-                    
-                    // Update capital and performance
-                    document.getElementById('tradingCapital').textContent = '$' + data.trading_capital.toFixed(2);
-                    document.getElementById('reserveBalance').textContent = '$' + data.reserve_balance.toFixed(2);
-                    document.getElementById('totalProfit').textContent = '$' + data.total_profit.toFixed(2);
-                    
-                    // Update win rate
-                    const winRate = data.total_trades > 0 ? ((data.wins / data.total_trades) * 100).toFixed(1) : 0;
-                    document.getElementById('winRate').textContent = winRate + '%';
-                    document.getElementById('tradeStats').textContent = 
-                        `${data.total_trades} trades (${data.wins} wins, ${data.losses} losses)`;
-                    
-                    // Update positions
-                    document.getElementById('positionCount').textContent = data.positions.length;
-                    
-                    // Update button states
-                    updateButtonStates();
-                    
-                } catch (err) {
-                    console.error('Failed to poll status:', err);
-                }
-            }, 2000); // Poll every 2 seconds
-        }
+        // SOL token mint address
+        const SOL_MINT = 'So11111111111111111111111111111111111111112';
         
-        function stopStatusPolling() {
-            if (statusPollInterval) {
-                clearInterval(statusPollInterval);
-                statusPollInterval = null;
-            }
-        }
-        
+        // Connect Phantom Wallet
         async function connectWallet() {
-            const connectBtn = document.getElementById('connectWalletBtn');
-            connectBtn.disabled = true;
-            connectBtn.textContent = '🔄 Connecting...';
-            
             try {
                 // Check if Phantom is installed
-                if (typeof window.solana === 'undefined' || !window.solana.isPhantom) {
-                    const installPhantom = confirm(
-                        '⚠️ Phantom wallet not detected!\n\n' +
-                        'Please install Phantom wallet extension to use this bot.\n\n' +
-                        'Click OK to open the Phantom download page.'
-                    );
-                    
-                    if (installPhantom) {
-                        window.open('https://phantom.app/download', '_blank');
-                    }
-                    
-                    connectBtn.disabled = false;
-                    connectBtn.textContent = '🔗 Connect Phantom Wallet';
+                if (!window.solana || !window.solana.isPhantom) {
+                    alert('Phantom wallet not detected! Please install Phantom from https://phantom.app/');
                     return;
                 }
                 
-                // Request connection
+                // Connect to Phantom
                 const resp = await window.solana.connect();
-                
-                if (!resp || !resp.publicKey) {
-                    throw new Error('No public key returned from connection');
-                }
-                
                 walletAddress = resp.publicKey.toString();
+                provider = window.solana;
                 walletConnected = true;
                 
-                console.log('✅ Wallet connected:', walletAddress);
+                // Update UI
+                document.getElementById('walletStatus').textContent = '🟢 CONNECTED';
+                document.getElementById('walletStatus').className = 'status-badge connected';
+                document.getElementById('walletAddress').textContent = walletAddress;
+                document.getElementById('balanceDisplay').style.display = 'flex';
+                document.getElementById('connectWalletBtn').style.display = 'none';
+                document.getElementById('disconnectWalletBtn').style.display = 'inline-block';
                 
-                updateWalletUI();
-                addToFeed('🔗 Wallet connected: ' + walletAddress.slice(0, 8) + '...');
-                
-                // Get wallet balance
+                // Fetch balances
                 await updateWalletBalance();
                 
-                // Start polling bot status
-                startStatusPolling();
-                
-                // Listen for disconnect
-                window.solana.on('disconnect', () => {
-                    console.log('Wallet disconnected by user');
-                    disconnectWallet();
-                });
-                
-                // Listen for account change
-                window.solana.on('accountChanged', (publicKey) => {
-                    if (publicKey) {
-                        console.log('Account changed to:', publicKey.toString());
-                        walletAddress = publicKey.toString();
-                        updateWalletUI();
-                        updateWalletBalance();
-                        addToFeed('🔄 Account changed: ' + walletAddress.slice(0, 8) + '...');
-                    } else {
-                        disconnectWallet();
-                    }
-                });
+                addToFeed('✅ Wallet connected: ' + walletAddress.substring(0, 8) + '...');
                 
             } catch (err) {
                 console.error('Wallet connection error:', err);
-                
-                let errorMessage = 'Failed to connect wallet';
-                
-                if (err.code === 4001) {
-                    errorMessage = '❌ Connection Rejected\n\nYou declined the connection request.\nPlease try again and approve the connection in Phantom.';
-                } else if (err.code === -32002) {
-                    errorMessage = '⏳ Request Pending\n\nPlease check Phantom - there may be a pending connection request.';
-                } else if (err.message && err.message.includes('User rejected')) {
-                    errorMessage = '❌ Connection Rejected\n\nYou declined the connection request.\nPlease try again and approve the connection in Phantom.';
-                } else {
-                    errorMessage = '❌ Connection Failed\n\n' + 
-                        'Error: ' + (err.message || 'Unknown error') + '\n\n' +
-                        'Troubleshooting:\n' +
-                        '1. Make sure Phantom is unlocked\n' +
-                        '2. Try refreshing the page\n' +
-                        '3. Check if Phantom is updated to the latest version';
-                }
-                
-                alert(errorMessage);
-                
-                connectBtn.disabled = false;
-                connectBtn.textContent = '🔗 Connect Phantom Wallet';
+                addToFeed('❌ Failed to connect wallet: ' + err.message);
             }
         }
         
-        function updateWalletUI() {
-            document.getElementById('walletStatus').className = 'status-badge connected';
-            document.getElementById('walletStatus').textContent = '🟢 CONNECTED';
-            document.getElementById('walletAddress').textContent = 
-                walletAddress.slice(0, 4) + '...' + walletAddress.slice(-4);
-            document.getElementById('connectWalletBtn').style.display = 'none';
-            document.getElementById('disconnectWalletBtn').style.display = 'inline-block';
-            document.getElementById('walletBalance').style.display = 'flex';
-            
-            updateButtonStates();
-        }
-        
+        // Disconnect wallet
         async function disconnectWallet() {
-            try {
-                if (window.solana && window.solana.isConnected) {
-                    await window.solana.disconnect();
-                }
-            } catch (err) {
-                console.error('Error disconnecting:', err);
+            if (provider) {
+                await provider.disconnect();
             }
-            
             walletConnected = false;
             walletAddress = null;
-            botActive = false;
-            botPaused = false;
+            provider = null;
             
-            document.getElementById('walletStatus').className = 'status-badge disconnected';
             document.getElementById('walletStatus').textContent = '🔴 NOT CONNECTED';
+            document.getElementById('walletStatus').className = 'status-badge disconnected';
             document.getElementById('walletAddress').textContent = '';
+            document.getElementById('balanceDisplay').style.display = 'none';
             document.getElementById('connectWalletBtn').style.display = 'inline-block';
-            document.getElementById('connectWalletBtn').disabled = false;
-            document.getElementById('connectWalletBtn').textContent = '🔗 Connect Phantom Wallet';
             document.getElementById('disconnectWalletBtn').style.display = 'none';
-            document.getElementById('walletBalance').style.display = 'none';
-            
-            stopStatusPolling();
-            updateButtonStates();
             
             addToFeed('🔌 Wallet disconnected');
         }
         
+        // Update wallet balance
         async function updateWalletBalance() {
-            if (!walletAddress) return;
+            if (!walletConnected || !walletAddress) return;
             
             try {
-                const response = await fetch('/api/wallet/balance', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ wallet_address: walletAddress })
-                });
+                const pubkey = new solanaWeb3.PublicKey(walletAddress);
+                const balance = await connection.getBalance(pubkey);
+                const solBalance = balance / solanaWeb3.LAMPORTS_PER_SOL;
                 
-                const data = await response.json();
-                document.getElementById('solBalance').textContent = data.sol.toFixed(4);
-                document.getElementById('usdcBalance').textContent = data.usdc.toFixed(2);
+                document.getElementById('solBalance').textContent = solBalance.toFixed(4);
+                
+                // TODO: Fetch USDC balance
+                document.getElementById('usdcBalance').textContent = '0.00';
+                
             } catch (err) {
-                console.error('Failed to get balance:', err);
+                console.error('Balance fetch error:', err);
             }
         }
         
+        // Start bot
         async function startBot() {
             if (!walletConnected) {
-                alert('⚠️ Please connect your wallet first!');
+                alert('Please connect your Phantom wallet first!');
                 return;
             }
             
-            try {
-                const response = await fetch('/api/bot/start', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ wallet_address: walletAddress })
-                });
-                
-                const data = await response.json();
-                botActive = true;
-                botPaused = false;
-                
-                document.getElementById('botStatus').className = 'status-badge connected';
-                document.getElementById('botStatus').textContent = 'Active';
-                document.getElementById('scanningIndicator').style.display = 'inline-block';
-                document.getElementById('activityIndicator').style.display = 'block';
-                document.getElementById('activityIndicator').textContent = 'Starting bot - scanning for tokens...';
-                
-                updateButtonStates();
-                addToFeed('🚀 Bot started with wallet: ' + walletAddress.slice(0, 8) + '...');
-                
-                // Start live token scanning
-                startScanning();
-                
-                // Schedule demo trade
-                scheduleDemoTrade();
-            } catch (err) {
-                alert('Failed to start bot: ' + err.message);
-            }
+            botActive = true;
+            botPaused = false;
+            
+            document.getElementById('botStatusBadge').textContent = 'Active';
+            document.getElementById('botStatusBadge').className = 'status-indicator status-active';
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('pauseBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = false;
+            document.getElementById('emergencyBtn').disabled = false;
+            document.getElementById('scanningIndicator').style.display = 'inline-block';
+            
+            addToFeed('🚀 Bot started - scanning for opportunities');
+            
+            // Start scanning
+            startScanning();
         }
         
-        async function pauseBot() {
-            try {
-                const response = await fetch('/api/bot/pause', { method: 'POST' });
-                const data = await response.json();
-                
-                botActive = false;
-                botPaused = true;
-                
-                document.getElementById('botStatus').className = 'status-badge paused';
-                document.getElementById('botStatus').textContent = 'Paused';
-                document.getElementById('scanningIndicator').style.display = 'none';
-                document.getElementById('activityIndicator').style.display = 'block';
-                document.getElementById('activityIndicator').textContent = 'Bot paused - positions maintained';
-                
-                updateButtonStates();
-                addToFeed('⏸️ Bot paused - positions maintained');
-                
-                // Stop scanning
-                stopScanning();
-                
-                // Cancel demo trade
-                cancelDemoTrade();
-            } catch (err) {
-                alert('Failed to pause bot: ' + err.message);
-            }
+        // Pause bot
+        function pauseBot() {
+            botPaused = true;
+            botActive = false;
+            stopScanning();
+            
+            document.getElementById('botStatusBadge').textContent = 'Paused';
+            document.getElementById('botStatusBadge').className = 'status-indicator status-paused';
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('pauseBtn').disabled = true;
+            document.getElementById('scanningIndicator').style.display = 'none';
+            
+            addToFeed('⏸️ Bot paused');
         }
         
+        // Stop bot
         async function stopBot() {
-            if (!confirm('⚠️ Stop bot and sell all positions?')) return;
+            botActive = false;
+            botPaused = false;
+            stopScanning();
             
-            try {
-                const response = await fetch('/api/bot/stop', { method: 'POST' });
-                const data = await response.json();
-                
-                botActive = false;
-                botPaused = false;
-                
-                document.getElementById('botStatus').className = 'status-badge disconnected';
-                document.getElementById('botStatus').textContent = 'Inactive';
-                document.getElementById('scanningIndicator').style.display = 'none';
-                document.getElementById('activityIndicator').style.display = 'none';
-                
-                updateButtonStates();
-                addToFeed('🛑 Bot stopped - all positions sold');
-                
-                // Stop scanning
-                stopScanning();
-                
-                // Cancel demo trade
-                cancelDemoTrade();
-            } catch (err) {
-                alert('Failed to stop bot: ' + err.message);
+            document.getElementById('botStatusBadge').textContent = 'Inactive';
+            document.getElementById('botStatusBadge').className = 'status-indicator status-inactive';
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('pauseBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('emergencyBtn').disabled = true;
+            document.getElementById('scanningIndicator').style.display = 'none';
+            
+            addToFeed('🛑 Bot stopped');
+            
+            // Close all positions
+            if (positions.length > 0) {
+                addToFeed('💰 Closing all positions...');
+                for (const position of positions) {
+                    await closePosition(position);
+                }
             }
         }
         
+        // Emergency exit
         async function emergencyExit() {
-            if (!confirm('🚨 EMERGENCY EXIT: Sell all positions immediately?')) return;
-            
-            try {
-                const response = await fetch('/api/bot/emergency_exit', { method: 'POST' });
-                const data = await response.json();
-                
-                botActive = false;
-                botPaused = false;
-                
-                document.getElementById('botStatus').className = 'status-badge disconnected';
-                document.getElementById('botStatus').textContent = 'Inactive';
-                document.getElementById('scanningIndicator').style.display = 'none';
-                document.getElementById('activityIndicator').style.display = 'none';
-                
-                updateButtonStates();
-                addToFeed('🚨 Emergency exit - all positions liquidated');
-                
-                // Stop scanning
-                stopScanning();
-                
-                // Cancel demo trade
-                cancelDemoTrade();
-            } catch (err) {
-                alert('Failed to execute emergency exit: ' + err.message);
-            }
+            addToFeed('🚨 EMERGENCY EXIT - Closing all positions immediately!');
+            await stopBot();
         }
         
-        async function withdrawReserve() {
-            if (!walletConnected) {
-                alert('⚠️ Please connect your wallet first!');
-                return;
+        // Start scanning for tokens
+        function startScanning() {
+            if (scanInterval) {
+                clearInterval(scanInterval);
             }
             
-            try {
-                const response = await fetch('/api/withdraw/reserve', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ wallet_address: walletAddress })
-                });
-                
-                const data = await response.json();
-                if (data.error) {
-                    alert(data.error);
-                } else {
-                    addToFeed('💸 ' + data.message);
-                    await updateWalletBalance();
-                }
-            } catch (err) {
-                alert('Failed to withdraw: ' + err.message);
-            }
+            scanForTokens();
+            scanInterval = setInterval(scanForTokens, 10000); // Scan every 10 seconds
         }
         
-        async function withdrawAll() {
-            if (!walletConnected) {
-                alert('⚠️ Please connect your wallet first!');
-                return;
+        // Stop scanning
+        function stopScanning() {
+            if (scanInterval) {
+                clearInterval(scanInterval);
+                scanInterval = null;
             }
-            
-            if (!confirm('💰 Withdraw all funds to your wallet?')) return;
-            
-            try {
-                const response = await fetch('/api/withdraw/all', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ wallet_address: walletAddress })
-                });
-                
-                const data = await response.json();
-                if (data.error) {
-                    alert(data.error);
-                } else {
-                    addToFeed('💰 ' + data.message);
-                    await updateWalletBalance();
-                }
-            } catch (err) {
-                alert('Failed to withdraw: ' + err.message);
-            }
+            scanCount = 0;
         }
         
-        async function withdrawProfits() {
-            if (!walletConnected) {
-                alert('⚠️ Please connect your wallet first!');
-                return;
-            }
-            
-            try {
-                const response = await fetch('/api/withdraw/profits', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ wallet_address: walletAddress })
-                });
-                
-                const data = await response.json();
-                if (data.error) {
-                    alert(data.error);
-                } else {
-                    addToFeed('📈 ' + data.message);
-                    await updateWalletBalance();
-                }
-            } catch (err) {
-                alert('Failed to withdraw: ' + err.message);
-            }
-        }
-        
-        let scanInterval = null;
-        let scanCount = 0;
-        
+        // Scan for tokens
         async function scanForTokens() {
-            if (!botActive || botPaused) {
-                return;
-            }
+            if (!botActive) return;
             
             scanCount++;
+            const categories = ['ultra_new', 'very_new', 'fresh', 'top_gainers', 'trending', 'established'];
+            const category = scanCount <= 5 ? categories[scanCount - 1] : 'established';
             
-            // Priority 1: Scan new/small tokens first (scans 1-5)
-            // Priority 2: Fall back to established tokens (scan 6+)
-            let category, categoryNames;
-            
-            if (scanCount <= 5) {
-                // First 5 scans: focus on new tokens
-                const newCategories = ['ultra_new', 'very_new', 'fresh', 'top_gainers', 'trending'];
-                category = newCategories[(scanCount - 1) % newCategories.length];
-                categoryNames = {
-                    'ultra_new': '🆕 Ultra New (<1hr)',
-                    'very_new': '🔥 Very New (<6hr)',
-                    'fresh': '⚡ Fresh (<24hr)',
-                    'top_gainers': '📈 Top Gainers',
-                    'trending': '🌊 Trending'
-                };
-            } else {
-                // After 5 scans without finding anything: check established tokens
-                category = 'established';
-                categoryNames = { 'established': '💎 Established (BONK, WIF, JUP...)' };
-            }
-            
-            addToFeed(`🔍 Scanning ${categoryNames[category]}... (scan #${scanCount})`);
+            addToFeed(`🔍 Scanning 💎 ${category.replace('_', ' ').toUpperCase()}... (scan #${scanCount})`);
             
             try {
                 const response = await fetch('/api/tokens/scan', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ category: category })
+                    body: JSON.stringify({ category })
                 });
                 
                 const data = await response.json();
@@ -864,40 +636,33 @@
                 if (data.tokens && data.tokens.length > 0) {
                     addToFeed(`✅ Found ${data.tokens.length} tokens`);
                     
-                    // Show a few interesting tokens
-                    const tokensToShow = data.tokens.slice(0, 3);
-                    for (const token of tokensToShow) {
-                        const priceChange = token.change_24h > 0 ? `+${token.change_24h.toFixed(2)}%` : `${token.change_24h.toFixed(2)}%`;
+                    // Display tokens
+                    for (const token of data.tokens.slice(0, 5)) {
+                        const priceChange = token.change_24h >= 0 ? `+${token.change_24h.toFixed(2)}%` : `${token.change_24h.toFixed(2)}%`;
                         const emoji = token.change_24h > 0 ? '📈' : '📉';
                         addToFeed(`${emoji} ${token.symbol}: $${token.price.toFixed(6)} (${priceChange}) - Safety: ${token.scam_score}/100`);
                     }
                     
-                    // Check if any token meets trade criteria
-                    // Stricter criteria for new tokens, more lenient for established
-                    const minSafety = category === 'established' ? 85 : 85;
-                    const minChange = category === 'established' ? 2 : 8;  // Lowered to 2% for demo
-                    
-                    // After 10 scans, execute on best available token regardless of criteria
-                    const forceExecute = scanCount >= 10;
-                    
-                    for (const token of data.tokens) {
-                        const meetsCriteria = token.scam_score >= minSafety && Math.abs(token.change_24h) > minChange;
+                    // Check if we can take a position
+                    if (positions.length < maxPositions) {
+                        const minSafety = 85;
+                        const minChange = category === 'established' ? 2 : 8;
+                        const forceExecute = scanCount >= 10;
                         
-                        if (!demoTradeExecuted && (meetsCriteria || forceExecute)) {
-                            const tokenType = category === 'established' ? 'established token' : 'new opportunity';
-                            const reason = forceExecute ? 'best available' : (token.change_24h > 0 ? 'Strong momentum' : 'Potential reversal');
-                            addToFeed(`🎯 Found ${tokenType}: ${token.symbol} - ${reason}!`);
+                        for (const token of data.tokens) {
+                            const meetsCriteria = token.scam_score >= minSafety && Math.abs(token.change_24h) > minChange;
                             
-                            // Cancel the scheduled demo trade and execute immediately
-                            if (demoTradeTimeout) {
-                                clearTimeout(demoTradeTimeout);
-                                demoTradeTimeout = null;
+                            if (meetsCriteria || forceExecute) {
+                                const reason = forceExecute ? 'best available' : (token.change_24h > 0 ? 'Strong momentum' : 'Potential reversal');
+                                addToFeed(`🎯 Found opportunity: ${token.symbol} - ${reason}!`);
+                                
+                                // Execute trade
+                                setTimeout(() => executeRealTrade(token), 2000);
+                                break;
                             }
-                            
-                            // Execute trade with this token
-                            setTimeout(() => executeDemoTradeWithToken(token), 2000);
-                            break;
                         }
+                    } else {
+                        addToFeed('⚠️ Maximum positions reached (2/2)');
                     }
                 } else {
                     addToFeed('⏳ No suitable tokens found, continuing scan...');
@@ -908,192 +673,213 @@
             }
         }
         
-        function executeDemoTradeWithToken(token) {
-            if (!botActive || demoTradeExecuted) return;
-            
-            const entryPrice = token.price;
-            const amount = 10;
-            const quantity = amount / entryPrice;
-            
-            demoPosition = {
-                symbol: token.symbol,
-                name: token.name || token.symbol,
-                entryPrice: entryPrice,
-                currentPrice: entryPrice,
-                amount: amount,
-                quantity: quantity,
-                entryTime: new Date()
-            };
-            
-            demoTradeExecuted = true;
-            
-            addToFeed(`💰 Entering position: ${token.symbol} at $${entryPrice.toFixed(6)}`);
-            addToFeed(`📊 Position size: $${amount.toFixed(2)} (${quantity.toFixed(2)} tokens)`);
-            
-            updatePositionsTable();
-            demoPriceUpdateInterval = setInterval(updateDemoPrice, 3000);
-        }
-        
-        function startScanning() {
-            if (scanInterval) {
-                clearInterval(scanInterval);
+        // Execute real trade using Jupiter
+        async function executeRealTrade(token) {
+            if (!walletConnected || !botActive) return;
+            if (positions.length >= maxPositions) {
+                addToFeed('⚠️ Cannot execute trade: Maximum positions reached');
+                return;
             }
             
-            // Scan immediately
-            scanForTokens();
-            
-            // Then scan every 10 seconds
-            scanInterval = setInterval(scanForTokens, 10000);
-        }
-        
-        function stopScanning() {
-            if (scanInterval) {
-                clearInterval(scanInterval);
-                scanInterval = null;
-            }
-            scanCount = 0;
-        }
-        
-        // Demo trading variables
-        let demoTradeTimeout = null;
-        let demoTradeExecuted = false;
-        let demoPosition = null;
-        let demoPriceUpdateInterval = null;
-        
-        function executeDemoTrade() {
-            if (!botActive || demoTradeExecuted) return;
-            
-            const demoTokens = [
-                { symbol: 'BONK', name: 'Bonk', price: 0.000024, change: 12.5 },
-                { symbol: 'WIF', name: 'dogwifhat', price: 1.234567, change: 8.3 },
-                { symbol: 'JUP', name: 'Jupiter', price: 0.876543, change: 15.2 }
-            ];
-            
-            const token = demoTokens[Math.floor(Math.random() * demoTokens.length)];
-            const entryPrice = token.price;
-            const amount = 10;
-            const quantity = amount / entryPrice;
-            
-            demoPosition = {
-                symbol: token.symbol,
-                name: token.name,
-                entryPrice: entryPrice,
-                currentPrice: entryPrice,
-                amount: amount,
-                quantity: quantity,
-                entryTime: new Date()
-            };
-            
-            demoTradeExecuted = true;
-            
-            addToFeed(`🎯 Opportunity found: ${token.symbol} - Strong momentum!`);
-            addToFeed(`💰 Entering position: ${token.symbol} at $${entryPrice.toFixed(6)}`);
-            addToFeed(`📊 Position size: $${amount.toFixed(2)} (${quantity.toFixed(2)} tokens)`);
-            
-            updatePositionsTable();
-            demoPriceUpdateInterval = setInterval(updateDemoPrice, 3000);
-        }
-        
-        function updateDemoPrice() {
-            if (!demoPosition || !botActive) {
-                if (demoPriceUpdateInterval) {
-                    clearInterval(demoPriceUpdateInterval);
-                    demoPriceUpdateInterval = null;
+            try {
+                addToFeed(`💰 Preparing to buy ${token.symbol} for $${positionSize}...`);
+                
+                // Get Jupiter quote
+                const solAmount = positionSize / 150; // Approximate SOL price at $150
+                const lamports = Math.floor(solAmount * solanaWeb3.LAMPORTS_PER_SOL);
+                
+                addToFeed(`📊 Getting Jupiter quote for ${solAmount.toFixed(4)} SOL → ${token.symbol}...`);
+                
+                const quoteResponse = await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${SOL_MINT}&outputMint=${token.address}&amount=${lamports}&slippageBps=50`);
+                const quoteData = await quoteResponse.json();
+                
+                if (!quoteData || quoteData.error) {
+                    addToFeed(`❌ Failed to get quote: ${quoteData.error || 'Unknown error'}`);
+                    return;
                 }
-                return;
+                
+                const outputAmount = quoteData.outAmount;
+                addToFeed(`✅ Quote received: ${outputAmount} ${token.symbol} tokens`);
+                
+                // Get swap transaction
+                const swapResponse = await fetch('https://quote-api.jup.ag/v6/swap', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        quoteResponse: quoteData,
+                        userPublicKey: walletAddress,
+                        wrapAndUnwrapSol: true
+                    })
+                });
+                
+                const swapData = await swapResponse.json();
+                
+                if (!swapData || !swapData.swapTransaction) {
+                    addToFeed('❌ Failed to create swap transaction');
+                    return;
+                }
+                
+                // Deserialize and sign transaction
+                const swapTransactionBuf = Buffer.from(swapData.swapTransaction, 'base64');
+                const transaction = solanaWeb3.Transaction.from(swapTransactionBuf);
+                
+                addToFeed('🔐 Please approve the transaction in Phantom...');
+                
+                // Sign and send transaction
+                const signed = await provider.signTransaction(transaction);
+                const txid = await connection.sendRawTransaction(signed.serialize());
+                
+                addToFeed(`📤 Transaction sent: ${txid.substring(0, 8)}...`);
+                addToFeed('⏳ Waiting for confirmation...');
+                
+                // Wait for confirmation
+                await connection.confirmTransaction(txid);
+                
+                addToFeed(`✅ Trade executed successfully!`);
+                addToFeed(`💰 Bought ${token.symbol} at $${token.price.toFixed(6)}`);
+                
+                // Add to positions
+                const position = {
+                    symbol: token.symbol,
+                    name: token.name || token.symbol,
+                    address: token.address,
+                    entryPrice: token.price,
+                    currentPrice: token.price,
+                    amount: positionSize,
+                    quantity: outputAmount,
+                    entryTime: new Date(),
+                    txid: txid
+                };
+                
+                positions.push(position);
+                updatePositionsTable();
+                
+                // Start price updates
+                startPriceUpdates();
+                
+            } catch (err) {
+                console.error('Trade execution error:', err);
+                addToFeed(`❌ Trade failed: ${err.message}`);
             }
-            
-            const priceChange = (Math.random() * 0.05 - 0.02);
-            demoPosition.currentPrice = demoPosition.currentPrice * (1 + priceChange);
-            updatePositionsTable();
         }
         
+        // Close position
+        async function closePosition(position) {
+            try {
+                addToFeed(`📤 Closing position: ${position.symbol}...`);
+                
+                // Get Jupiter quote for reverse swap
+                const quoteResponse = await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${position.address}&outputMint=${SOL_MINT}&amount=${position.quantity}&slippageBps=50`);
+                const quoteData = await quoteResponse.json();
+                
+                if (!quoteData || quoteData.error) {
+                    addToFeed(`❌ Failed to get quote: ${quoteData.error || 'Unknown error'}`);
+                    return;
+                }
+                
+                // Get swap transaction
+                const swapResponse = await fetch('https://quote-api.jup.ag/v6/swap', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        quoteResponse: quoteData,
+                        userPublicKey: walletAddress,
+                        wrapAndUnwrapSol: true
+                    })
+                });
+                
+                const swapData = await swapResponse.json();
+                
+                if (!swapData || !swapData.swapTransaction) {
+                    addToFeed('❌ Failed to create swap transaction');
+                    return;
+                }
+                
+                // Sign and send
+                const swapTransactionBuf = Buffer.from(swapData.swapTransaction, 'base64');
+                const transaction = solanaWeb3.Transaction.from(swapTransactionBuf);
+                
+                addToFeed('🔐 Please approve the transaction in Phantom...');
+                
+                const signed = await provider.signTransaction(transaction);
+                const txid = await connection.sendRawTransaction(signed.serialize());
+                
+                addToFeed(`📤 Transaction sent: ${txid.substring(0, 8)}...`);
+                
+                await connection.confirmTransaction(txid);
+                
+                const pnl = (position.currentPrice - position.entryPrice) * position.quantity;
+                const pnlPercent = ((position.currentPrice - position.entryPrice) / position.entryPrice) * 100;
+                
+                addToFeed(`✅ Position closed: ${position.symbol}`);
+                addToFeed(`💵 Exit price: $${position.currentPrice.toFixed(6)}`);
+                addToFeed(`${pnl >= 0 ? '✅' : '❌'} P&L: $${pnl.toFixed(2)} (${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toFixed(2)}%)`);
+                
+                // Remove from positions
+                positions = positions.filter(p => p.symbol !== position.symbol);
+                updatePositionsTable();
+                
+            } catch (err) {
+                console.error('Close position error:', err);
+                addToFeed(`❌ Failed to close position: ${err.message}`);
+            }
+        }
+        
+        // Update positions table
         function updatePositionsTable() {
-            if (!demoPosition) return;
-            
             const tbody = document.getElementById('positionsTable');
-            if (!tbody) {
-                console.error('positionsTable not found!');
+            document.getElementById('positionCount').textContent = positions.length;
+            
+            if (positions.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #888;">No active positions</td></tr>';
                 return;
             }
             
-            const pnl = (demoPosition.currentPrice - demoPosition.entryPrice) * demoPosition.quantity;
-            const pnlPercent = ((demoPosition.currentPrice - demoPosition.entryPrice) / demoPosition.entryPrice) * 100;
-            const pnlClass = pnl >= 0 ? 'profit' : 'loss';
-            const pnlEmoji = pnl >= 0 ? '📈' : '📉';
-            
-            tbody.innerHTML = `
-                <tr>
-                    <td><strong>${demoPosition.symbol}</strong></td>
-                    <td>$${demoPosition.entryPrice.toFixed(6)}</td>
-                    <td>$${demoPosition.currentPrice.toFixed(6)}</td>
-                    <td>$${demoPosition.amount.toFixed(2)}</td>
-                    <td class="${pnlClass}">${pnlEmoji} $${pnl.toFixed(2)}</td>
-                    <td class="${pnlClass}">${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toFixed(2)}%</td>
-                    <td><button onclick="closeDemoPosition()" style="padding: 5px 10px; background: #e74c3c; color: white; border: none; border-radius: 5px; cursor: pointer;">Close</button></td>
-                </tr>
-            `;
-            
-            document.getElementById('totalProfit').textContent = '$' + pnl.toFixed(2);
-            document.getElementById('totalProfit').className = pnlClass;
+            tbody.innerHTML = positions.map(pos => {
+                const pnl = (pos.currentPrice - pos.entryPrice) * pos.quantity;
+                const pnlPercent = ((pos.currentPrice - pos.entryPrice) / pos.entryPrice) * 100;
+                const pnlClass = pnl >= 0 ? 'profit' : 'loss';
+                const pnlEmoji = pnl >= 0 ? '📈' : '📉';
+                
+                return `
+                    <tr>
+                        <td><strong>${pos.symbol}</strong></td>
+                        <td>$${pos.entryPrice.toFixed(6)}</td>
+                        <td>$${pos.currentPrice.toFixed(6)}</td>
+                        <td>$${pos.amount.toFixed(2)}</td>
+                        <td class="${pnlClass}">${pnlEmoji} $${pnl.toFixed(2)}</td>
+                        <td class="${pnlClass}">${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toFixed(2)}%</td>
+                        <td><button onclick="closePosition(${JSON.stringify(pos).replace(/"/g, '&quot;')})" style="padding: 5px 10px; background: #e74c3c; color: white; border: none; border-radius: 5px; cursor: pointer;">Close</button></td>
+                    </tr>
+                `;
+            }).join('');
         }
         
-        function closeDemoPosition() {
-            if (!demoPosition) return;
+        // Start price updates
+        let priceUpdateInterval = null;
+        function startPriceUpdates() {
+            if (priceUpdateInterval) return;
             
-            const pnl = (demoPosition.currentPrice - demoPosition.entryPrice) * demoPosition.quantity;
-            const pnlPercent = ((demoPosition.currentPrice - demoPosition.entryPrice) / demoPosition.entryPrice) * 100;
-            
-            addToFeed(`📤 Closing position: ${demoPosition.symbol}`);
-            addToFeed(`💵 Exit price: $${demoPosition.currentPrice.toFixed(6)}`);
-            addToFeed(`${pnl >= 0 ? '✅' : '❌'} P&L: $${pnl.toFixed(2)} (${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toFixed(2)}%)`);
-            
-            demoPosition = null;
-            
-            if (demoPriceUpdateInterval) {
-                clearInterval(demoPriceUpdateInterval);
-                demoPriceUpdateInterval = null;
-            }
-            
-            const tbody = document.getElementById('positionsTable');
-            if (tbody) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #888;">No active positions</td></tr>';
-            }
+            priceUpdateInterval = setInterval(async () => {
+                if (positions.length === 0) {
+                    clearInterval(priceUpdateInterval);
+                    priceUpdateInterval = null;
+                    return;
+                }
+                
+                // Update prices (in real implementation, fetch from DexScreener)
+                for (const pos of positions) {
+                    // Simulate price change for now
+                    const change = (Math.random() * 0.05 - 0.02);
+                    pos.currentPrice = pos.currentPrice * (1 + change);
+                }
+                
+                updatePositionsTable();
+            }, 3000);
         }
         
-        function scheduleDemoTrade() {
-            if (demoTradeTimeout) {
-                clearTimeout(demoTradeTimeout);
-            }
-            
-            const minDelay = 30000;
-            const maxDelay = 900000;
-            const delay = Math.random() * (maxDelay - minDelay) + minDelay;
-            
-            const minutes = Math.floor(delay / 60000);
-            const seconds = Math.floor((delay % 60000) / 1000);
-            
-            addToFeed(`⏰ Demo trade scheduled in ~${minutes}m ${seconds}s`);
-            
-            demoTradeTimeout = setTimeout(executeDemoTrade, delay);
-        }
-        
-        function cancelDemoTrade() {
-            if (demoTradeTimeout) {
-                clearTimeout(demoTradeTimeout);
-                demoTradeTimeout = null;
-            }
-            
-            if (demoPriceUpdateInterval) {
-                clearInterval(demoPriceUpdateInterval);
-                demoPriceUpdateInterval = null;
-            }
-            
-            demoTradeExecuted = false;
-            demoPosition = null;
-        }
-        
-                function addToFeed(message) {
+        // Add to feed
+        function addToFeed(message) {
             const feed = document.getElementById('liveFeed');
             const item = document.createElement('div');
             item.className = 'feed-item';
@@ -1103,27 +889,60 @@
             `;
             feed.insertBefore(item, feed.firstChild);
             
-            // Keep only last 15 items
-            while (feed.children.length > 15) {
+            // Keep only last 50 items
+            while (feed.children.length > 50) {
                 feed.removeChild(feed.lastChild);
             }
         }
         
-        // Initialize
-        window.addEventListener('load', () => {
-            console.log('Page loaded, initializing...');
-            
-            addToFeed('💵 Starting capital: $50.00');
-            addToFeed('💰 Reserve wallet: Az6NNWG5...');
-            addToFeed('🔗 APIs connected: Helius, Birdeye, Jupiter, DexScreener');
-            addToFeed('✨ Nova Ultimate initialized!');
-            
-            updateButtonStates();
-            
-            // Auto-connect if Phantom is already connected
-            if (window.solana && window.solana.isConnected && window.solana.publicKey) {
-                console.log('Auto-connecting to previously authorized wallet...');
-                connectWallet();
+        // Withdraw functions
+        function withdrawReserve() {
+            if (!walletConnected) {
+                alert('Please connect wallet first');
+                return;
+            }
+            addToFeed('💸 Withdraw reserve functionality coming soon...');
+        }
+        
+        function withdrawAll() {
+            if (!walletConnected) {
+                alert('Please connect wallet first');
+                return;
+            }
+            addToFeed('💰 Withdraw all functionality coming soon...');
+        }
+        
+        function withdrawProfits() {
+            if (!walletConnected) {
+                alert('Please connect wallet first');
+                return;
+            }
+            addToFeed('📈 Withdraw profits functionality coming soon...');
+        }
+        
+        // Auto-reconnect wallet on page load
+        window.addEventListener('load', async () => {
+            if (window.solana && window.solana.isPhantom) {
+                try {
+                    const resp = await window.solana.connect({ onlyIfTrusted: true });
+                    if (resp.publicKey) {
+                        walletAddress = resp.publicKey.toString();
+                        provider = window.solana;
+                        walletConnected = true;
+                        
+                        document.getElementById('walletStatus').textContent = '🟢 CONNECTED';
+                        document.getElementById('walletStatus').className = 'status-badge connected';
+                        document.getElementById('walletAddress').textContent = walletAddress;
+                        document.getElementById('balanceDisplay').style.display = 'flex';
+                        document.getElementById('connectWalletBtn').style.display = 'none';
+                        document.getElementById('disconnectWalletBtn').style.display = 'inline-block';
+                        
+                        await updateWalletBalance();
+                        addToFeed('✅ Wallet auto-connected: ' + walletAddress.substring(0, 8) + '...');
+                    }
+                } catch (err) {
+                    // User hasn't approved auto-connect
+                }
             }
         });
     </script>
