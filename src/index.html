@@ -829,16 +829,26 @@
             
             scanCount++;
             
-            // Rotate through different categories
-            const categories = ['ultra_new', 'very_new', 'fresh', 'top_gainers', 'trending'];
-            const category = categories[scanCount % categories.length];
-            const categoryNames = {
-                'ultra_new': '🆕 Ultra New (<1hr)',
-                'very_new': '🔥 Very New (<6hr)',
-                'fresh': '⚡ Fresh (<24hr)',
-                'top_gainers': '📈 Top Gainers',
-                'trending': '🌊 Trending'
-            };
+            // Priority 1: Scan new/small tokens first (scans 1-5)
+            // Priority 2: Fall back to established tokens (scan 6+)
+            let category, categoryNames;
+            
+            if (scanCount <= 5) {
+                // First 5 scans: focus on new tokens
+                const newCategories = ['ultra_new', 'very_new', 'fresh', 'top_gainers', 'trending'];
+                category = newCategories[(scanCount - 1) % newCategories.length];
+                categoryNames = {
+                    'ultra_new': '🆕 Ultra New (<1hr)',
+                    'very_new': '🔥 Very New (<6hr)',
+                    'fresh': '⚡ Fresh (<24hr)',
+                    'top_gainers': '📈 Top Gainers',
+                    'trending': '🌊 Trending'
+                };
+            } else {
+                // After 5 scans without finding anything: check established tokens
+                category = 'established';
+                categoryNames = { 'established': '💎 Established (BONK, WIF, JUP...)' };
+            }
             
             addToFeed(`🔍 Scanning ${categoryNames[category]}... (scan #${scanCount})`);
             
@@ -863,9 +873,14 @@
                     }
                     
                     // Check if any token meets trade criteria
+                    // Stricter criteria for new tokens, more lenient for established
+                    const minSafety = category === 'established' ? 90 : 85;
+                    const minChange = category === 'established' ? 5 : 8;
+                    
                     for (const token of data.tokens) {
-                        if (!demoTradeExecuted && token.scam_score >= 85 && Math.abs(token.change_24h) > 8) {
-                            addToFeed(`🎯 Opportunity found: ${token.symbol} - ${token.change_24h > 0 ? 'Strong momentum' : 'Potential reversal'}!`);
+                        if (!demoTradeExecuted && token.scam_score >= minSafety && Math.abs(token.change_24h) > minChange) {
+                            const tokenType = category === 'established' ? 'established token' : 'new opportunity';
+                            addToFeed(`🎯 Found ${tokenType}: ${token.symbol} - ${token.change_24h > 0 ? 'Strong momentum' : 'Potential reversal'}!`);
                             
                             // Cancel the scheduled demo trade and execute immediately
                             if (demoTradeTimeout) {
