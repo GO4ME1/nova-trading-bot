@@ -648,6 +648,12 @@
                 
                 updateButtonStates();
                 addToFeed('🚀 Bot started with wallet: ' + walletAddress.slice(0, 8) + '...');
+                
+                // Start live token scanning
+                startScanning();
+                
+                // Schedule demo trade
+                scheduleDemoTrade();
             } catch (err) {
                 alert('Failed to start bot: ' + err.message);
             }
@@ -672,6 +678,9 @@
                 
                 // Stop scanning
                 stopScanning();
+                
+                // Cancel demo trade
+                cancelDemoTrade();
             } catch (err) {
                 alert('Failed to pause bot: ' + err.message);
             }
@@ -694,6 +703,12 @@
                 
                 updateButtonStates();
                 addToFeed('🛑 Bot stopped - all positions sold');
+                
+                // Stop scanning
+                stopScanning();
+                
+                // Cancel demo trade
+                cancelDemoTrade();
             } catch (err) {
                 alert('Failed to stop bot: ' + err.message);
             }
@@ -714,11 +729,20 @@
                 document.getElementById('scanningIndicator').style.display = 'none';
                 document.getElementById('activityIndicator').style.display = 'none';
                 
-                updateButtonStates();
-                addToFeed('🚨 Emergency exit executed - all positions liquidated!');
+                      updateButtonStates();
+                addToFeed('🚨 Emergency exit - all positions liquidated');
                 
                 // Stop scanning
                 stopScanning();
+                
+                // Cancel demo trade
+                cancelDemoTrade();!');
+                
+                // Stop scanning
+                stopScanning();
+                
+                // Cancel demo trade
+                cancelDemoTrade();
             } catch (err) {
                 alert('Failed to execute emergency exit: ' + err.message);
             }
@@ -863,6 +887,142 @@
                 scanInterval = null;
             }
             scanCount = 0;
+        }
+        
+        // Demo trading variables
+        let demoTradeTimeout = null;
+        let demoTradeExecuted = false;
+        let demoPosition = null;
+        let demoPriceUpdateInterval = null;
+        
+        function executeDemoTrade() {
+            if (!botActive || demoTradeExecuted) return;
+            
+            const demoTokens = [
+                { symbol: 'BONK', name: 'Bonk', price: 0.000024, change: 12.5 },
+                { symbol: 'WIF', name: 'dogwifhat', price: 1.234567, change: 8.3 },
+                { symbol: 'JUP', name: 'Jupiter', price: 0.876543, change: 15.2 }
+            ];
+            
+            const token = demoTokens[Math.floor(Math.random() * demoTokens.length)];
+            const entryPrice = token.price;
+            const amount = 10;
+            const quantity = amount / entryPrice;
+            
+            demoPosition = {
+                symbol: token.symbol,
+                name: token.name,
+                entryPrice: entryPrice,
+                currentPrice: entryPrice,
+                amount: amount,
+                quantity: quantity,
+                entryTime: new Date()
+            };
+            
+            demoTradeExecuted = true;
+            
+            addToFeed(`🎯 Opportunity found: ${token.symbol} - Strong momentum!`);
+            addToFeed(`💰 Entering position: ${token.symbol} at $${entryPrice.toFixed(6)}`);
+            addToFeed(`📊 Position size: $${amount.toFixed(2)} (${quantity.toFixed(2)} tokens)`);
+            
+            updatePositionsTable();
+            demoPriceUpdateInterval = setInterval(updateDemoPrice, 3000);
+        }
+        
+        function updateDemoPrice() {
+            if (!demoPosition || !botActive) {
+                if (demoPriceUpdateInterval) {
+                    clearInterval(demoPriceUpdateInterval);
+                    demoPriceUpdateInterval = null;
+                }
+                return;
+            }
+            
+            const priceChange = (Math.random() * 0.05 - 0.02);
+            demoPosition.currentPrice = demoPosition.currentPrice * (1 + priceChange);
+            updatePositionsTable();
+        }
+        
+        function updatePositionsTable() {
+            if (!demoPosition) return;
+            
+            const tbody = document.querySelector('#positionsTable tbody');
+            if (!tbody) return;
+            
+            const pnl = (demoPosition.currentPrice - demoPosition.entryPrice) * demoPosition.quantity;
+            const pnlPercent = ((demoPosition.currentPrice - demoPosition.entryPrice) / demoPosition.entryPrice) * 100;
+            const pnlClass = pnl >= 0 ? 'profit' : 'loss';
+            const pnlEmoji = pnl >= 0 ? '📈' : '📉';
+            
+            tbody.innerHTML = `
+                <tr>
+                    <td><strong>${demoPosition.symbol}</strong></td>
+                    <td>$${demoPosition.entryPrice.toFixed(6)}</td>
+                    <td>$${demoPosition.currentPrice.toFixed(6)}</td>
+                    <td>$${demoPosition.amount.toFixed(2)}</td>
+                    <td class="${pnlClass}">${pnlEmoji} $${pnl.toFixed(2)}</td>
+                    <td class="${pnlClass}">${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toFixed(2)}%</td>
+                    <td><button onclick="closeDemoPosition()" style="padding: 5px 10px; background: #e74c3c; color: white; border: none; border-radius: 5px; cursor: pointer;">Close</button></td>
+                </tr>
+            `;
+            
+            document.getElementById('totalProfit').textContent = '$' + pnl.toFixed(2);
+            document.getElementById('totalProfit').className = pnlClass;
+        }
+        
+        function closeDemoPosition() {
+            if (!demoPosition) return;
+            
+            const pnl = (demoPosition.currentPrice - demoPosition.entryPrice) * demoPosition.quantity;
+            const pnlPercent = ((demoPosition.currentPrice - demoPosition.entryPrice) / demoPosition.entryPrice) * 100;
+            
+            addToFeed(`📤 Closing position: ${demoPosition.symbol}`);
+            addToFeed(`💵 Exit price: $${demoPosition.currentPrice.toFixed(6)}`);
+            addToFeed(`${pnl >= 0 ? '✅' : '❌'} P&L: $${pnl.toFixed(2)} (${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toFixed(2)}%)`);
+            
+            demoPosition = null;
+            
+            if (demoPriceUpdateInterval) {
+                clearInterval(demoPriceUpdateInterval);
+                demoPriceUpdateInterval = null;
+            }
+            
+            const tbody = document.querySelector('#positionsTable tbody');
+            if (tbody) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #888;">No active positions</td></tr>';
+            }
+        }
+        
+        function scheduleDemoTrade() {
+            if (demoTradeTimeout) {
+                clearTimeout(demoTradeTimeout);
+            }
+            
+            const minDelay = 30000;
+            const maxDelay = 900000;
+            const delay = Math.random() * (maxDelay - minDelay) + minDelay;
+            
+            const minutes = Math.floor(delay / 60000);
+            const seconds = Math.floor((delay % 60000) / 1000);
+            
+            addToFeed(`⏰ Demo trade scheduled in ~${minutes}m ${seconds}s`);
+            
+            demoTradeTimeout = setTimeout(executeDemoTrade, delay);
+        }
+        
+        function cancelDemoTrade() {
+            if (demoTradeTimeout) {
+                clearTimeout(demoTradeTimeout);
+                demoTradeTimeout = null;
+            }
+            
+            if (demoPriceUpdateInterval) {
+                clearInterval(demoPriceUpdateInterval);
+                demoPriceUpdateInterval = null;
+            }
+            
+            demoTradeExecuted = false;
+            demoPosition = null;
         }
         
                 function addToFeed(message) {
