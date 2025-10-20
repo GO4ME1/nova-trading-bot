@@ -828,13 +828,25 @@
             }
             
             scanCount++;
-            addToFeed(`🔍 Scanning for tokens... (scan #${scanCount})`);
+            
+            // Rotate through different categories
+            const categories = ['ultra_new', 'very_new', 'fresh', 'top_gainers', 'trending'];
+            const category = categories[scanCount % categories.length];
+            const categoryNames = {
+                'ultra_new': '🆕 Ultra New (<1hr)',
+                'very_new': '🔥 Very New (<6hr)',
+                'fresh': '⚡ Fresh (<24hr)',
+                'top_gainers': '📈 Top Gainers',
+                'trending': '🌊 Trending'
+            };
+            
+            addToFeed(`🔍 Scanning ${categoryNames[category]}... (scan #${scanCount})`);
             
             try {
                 const response = await fetch('/api/tokens/scan', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ category: 'established' })
+                    body: JSON.stringify({ category: category })
                 });
                 
                 const data = await response.json();
@@ -848,10 +860,22 @@
                         const priceChange = token.change_24h > 0 ? `+${token.change_24h.toFixed(2)}%` : `${token.change_24h.toFixed(2)}%`;
                         const emoji = token.change_24h > 0 ? '📈' : '📉';
                         addToFeed(`${emoji} ${token.symbol}: $${token.price.toFixed(6)} (${priceChange}) - Safety: ${token.scam_score}/100`);
-                        
-                        // Simulate evaluation
-                        if (token.scam_score >= 90 && Math.abs(token.change_24h) > 5) {
-                            addToFeed(`🤔 Evaluating ${token.symbol} - ${token.change_24h > 0 ? 'Strong momentum' : 'Potential reversal'}`);
+                    }
+                    
+                    // Check if any token meets trade criteria
+                    for (const token of data.tokens) {
+                        if (!demoTradeExecuted && token.scam_score >= 85 && Math.abs(token.change_24h) > 8) {
+                            addToFeed(`🎯 Opportunity found: ${token.symbol} - ${token.change_24h > 0 ? 'Strong momentum' : 'Potential reversal'}!`);
+                            
+                            // Cancel the scheduled demo trade and execute immediately
+                            if (demoTradeTimeout) {
+                                clearTimeout(demoTradeTimeout);
+                                demoTradeTimeout = null;
+                            }
+                            
+                            // Execute trade with this token
+                            setTimeout(() => executeDemoTradeWithToken(token), 2000);
+                            break;
                         }
                     }
                 } else {
@@ -861,6 +885,32 @@
                 console.error('Scan error:', err);
                 addToFeed('⚠️ Scan error, retrying...');
             }
+        }
+        
+        function executeDemoTradeWithToken(token) {
+            if (!botActive || demoTradeExecuted) return;
+            
+            const entryPrice = token.price;
+            const amount = 10;
+            const quantity = amount / entryPrice;
+            
+            demoPosition = {
+                symbol: token.symbol,
+                name: token.name || token.symbol,
+                entryPrice: entryPrice,
+                currentPrice: entryPrice,
+                amount: amount,
+                quantity: quantity,
+                entryTime: new Date()
+            };
+            
+            demoTradeExecuted = true;
+            
+            addToFeed(`💰 Entering position: ${token.symbol} at $${entryPrice.toFixed(6)}`);
+            addToFeed(`📊 Position size: $${amount.toFixed(2)} (${quantity.toFixed(2)} tokens)`);
+            
+            updatePositionsTable();
+            demoPriceUpdateInterval = setInterval(updateDemoPrice, 3000);
         }
         
         function startScanning() {
