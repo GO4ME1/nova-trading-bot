@@ -669,6 +669,9 @@
                 
                 updateButtonStates();
                 addToFeed('⏸️ Bot paused - positions maintained');
+                
+                // Stop scanning
+                stopScanning();
             } catch (err) {
                 alert('Failed to pause bot: ' + err.message);
             }
@@ -713,6 +716,9 @@
                 
                 updateButtonStates();
                 addToFeed('🚨 Emergency exit executed - all positions liquidated!');
+                
+                // Stop scanning
+                stopScanning();
             } catch (err) {
                 alert('Failed to execute emergency exit: ' + err.message);
             }
@@ -795,7 +801,71 @@
             }
         }
         
-        function addToFeed(message) {
+        let scanInterval = null;
+        let scanCount = 0;
+        
+        async function scanForTokens() {
+            if (!botActive || botPaused) {
+                return;
+            }
+            
+            scanCount++;
+            addToFeed(`🔍 Scanning for tokens... (scan #${scanCount})`);
+            
+            try {
+                const response = await fetch('/api/tokens/scan', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ category: 'established' })
+                });
+                
+                const data = await response.json();
+                
+                if (data.tokens && data.tokens.length > 0) {
+                    addToFeed(`✅ Found ${data.tokens.length} tokens`);
+                    
+                    // Show a few interesting tokens
+                    const tokensToShow = data.tokens.slice(0, 3);
+                    for (const token of tokensToShow) {
+                        const priceChange = token.change_24h > 0 ? `+${token.change_24h.toFixed(2)}%` : `${token.change_24h.toFixed(2)}%`;
+                        const emoji = token.change_24h > 0 ? '📈' : '📉';
+                        addToFeed(`${emoji} ${token.symbol}: $${token.price.toFixed(6)} (${priceChange}) - Safety: ${token.scam_score}/100`);
+                        
+                        // Simulate evaluation
+                        if (token.scam_score >= 90 && Math.abs(token.change_24h) > 5) {
+                            addToFeed(`🤔 Evaluating ${token.symbol} - ${token.change_24h > 0 ? 'Strong momentum' : 'Potential reversal'}`);
+                        }
+                    }
+                } else {
+                    addToFeed('⏳ No suitable tokens found, continuing scan...');
+                }
+            } catch (err) {
+                console.error('Scan error:', err);
+                addToFeed('⚠️ Scan error, retrying...');
+            }
+        }
+        
+        function startScanning() {
+            if (scanInterval) {
+                clearInterval(scanInterval);
+            }
+            
+            // Scan immediately
+            scanForTokens();
+            
+            // Then scan every 10 seconds
+            scanInterval = setInterval(scanForTokens, 10000);
+        }
+        
+        function stopScanning() {
+            if (scanInterval) {
+                clearInterval(scanInterval);
+                scanInterval = null;
+            }
+            scanCount = 0;
+        }
+        
+                function addToFeed(message) {
             const feed = document.getElementById('liveFeed');
             const item = document.createElement('div');
             item.className = 'feed-item';
@@ -805,8 +875,8 @@
             `;
             feed.insertBefore(item, feed.firstChild);
             
-            // Keep only last 10 items
-            while (feed.children.length > 10) {
+            // Keep only last 15 items
+            while (feed.children.length > 15) {
                 feed.removeChild(feed.lastChild);
             }
         }
