@@ -114,6 +114,8 @@ def scan_tokens():
     data = request.json or {}
     category = data.get('category', 'established')
     
+    print(f"\n=== SCAN REQUEST: category={category} ===")
+    
     try:
         if category == 'established':
             # Get established tokens from DexScreener
@@ -164,13 +166,18 @@ def scan_tokens():
         else:
             return jsonify({"tokens": []})
         
+        print(f"Calling Birdeye API: {url}")
         response = requests.get(url, headers=headers, timeout=10)
+        print(f"Birdeye response status: {response.status_code}")
         
         if not response.ok:
+            print(f"Birdeye API error: {response.status_code} - {response.text[:200]}")
             return jsonify({"tokens": []})
         
         data = response.json()
+        print(f"Birdeye raw response keys: {data.keys()}")
         tokens_data = data.get('data', {}).get('items', []) or data.get('data', [])
+        print(f"Found {len(tokens_data)} tokens from Birdeye")
         
         tokens = []
         for token_data in tokens_data[:10]:
@@ -214,9 +221,13 @@ def scan_tokens():
                         'scam_score': scam_score
                     })
         
+        print(f"Returning {len(tokens)} processed tokens")
         return jsonify({"tokens": tokens})
     
     except Exception as e:
+        print(f"ERROR in scan_tokens: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e), "tokens": []}), 500
 
 @app.route('/api/withdraw/reserve', methods=['POST'])
