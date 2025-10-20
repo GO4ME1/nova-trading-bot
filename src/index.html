@@ -462,8 +462,26 @@
                     return;
                 }
                 
+                // Force disconnect first if already connected
+                if (walletConnected && provider) {
+                    try {
+                        await provider.disconnect();
+                    } catch (e) {
+                        console.log('Disconnect error:', e);
+                    }
+                }
+                
+                // Reset state
+                walletConnected = false;
+                walletAddress = null;
+                provider = null;
+                
                 // Connect to Phantom
                 const resp = await window.solana.connect();
+                if (!resp || !resp.publicKey) {
+                    throw new Error('No public key returned from Phantom');
+                }
+                
                 walletAddress = resp.publicKey.toString();
                 provider = window.solana;
                 walletConnected = true;
@@ -484,6 +502,17 @@
             } catch (err) {
                 console.error('Wallet connection error:', err);
                 addToFeed('❌ Failed to connect wallet: ' + err.message);
+                
+                // Reset UI on error
+                walletConnected = false;
+                walletAddress = null;
+                provider = null;
+                document.getElementById('walletStatus').textContent = '🔴 NOT CONNECTED';
+                document.getElementById('walletStatus').className = 'status-badge disconnected';
+                document.getElementById('walletAddress').textContent = '';
+                document.getElementById('balanceDisplay').style.display = 'none';
+                document.getElementById('connectWalletBtn').style.display = 'inline-block';
+                document.getElementById('disconnectWalletBtn').style.display = 'none';
             }
         }
         
@@ -508,7 +537,10 @@
         
         // Update wallet balance
         async function updateWalletBalance() {
-            if (!walletConnected || !walletAddress) return;
+            if (!walletConnected || !walletAddress) {
+                console.log('Cannot update balance: wallet not connected');
+                return;
+            }
             
             try {
                 const pubkey = new solanaWeb3.PublicKey(walletAddress);
@@ -520,8 +552,20 @@
                 // TODO: Fetch USDC balance
                 document.getElementById('usdcBalance').textContent = '0.00';
                 
+                addToFeed(`💰 Balance updated: ${solBalance.toFixed(4)} SOL`);
+                
             } catch (err) {
                 console.error('Balance fetch error:', err);
+                addToFeed('⚠️ Failed to fetch balance: ' + err.message);
+                
+                // Reset connection on balance fetch error
+                walletConnected = false;
+                walletAddress = null;
+                provider = null;
+                document.getElementById('walletStatus').textContent = '🔴 NOT CONNECTED';
+                document.getElementById('walletStatus').className = 'status-badge disconnected';
+                document.getElementById('connectWalletBtn').style.display = 'inline-block';
+                document.getElementById('disconnectWalletBtn').style.display = 'none';
             }
         }
         
@@ -925,7 +969,7 @@
             if (window.solana && window.solana.isPhantom) {
                 try {
                     const resp = await window.solana.connect({ onlyIfTrusted: true });
-                    if (resp.publicKey) {
+                    if (resp && resp.publicKey) {
                         walletAddress = resp.publicKey.toString();
                         provider = window.solana;
                         walletConnected = true;
@@ -939,9 +983,18 @@
                         
                         await updateWalletBalance();
                         addToFeed('✅ Wallet auto-connected: ' + walletAddress.substring(0, 8) + '...');
+                    } else {
+                        // Auto-connect didn't work, reset UI
+                        walletConnected = false;
+                        walletAddress = null;
+                        provider = null;
                     }
                 } catch (err) {
-                    // User hasn't approved auto-connect
+                    // User hasn't approved auto-connect, reset state
+                    console.log('Auto-connect not available:', err.message);
+                    walletConnected = false;
+                    walletAddress = null;
+                    provider = null;
                 }
             }
         });
