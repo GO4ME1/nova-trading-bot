@@ -34,7 +34,7 @@ bot_state = {
 
 @app.route('/')
 def index():
-    return send_from_directory('src', 'index_real_trading.html')
+    return send_from_directory('.', 'index.html')
 
 @app.route('/api/wallet/balance', methods=['POST'])
 def get_wallet_balance():
