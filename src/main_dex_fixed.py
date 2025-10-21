@@ -119,7 +119,7 @@ def get_wallet_balance():
         logger.error(f"Balance fetch error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/tokens/scan', methods=['GET'])
+@app.route('/api/tokens/scan', methods=['GET', 'POST'])
 def scan_tokens():
     """Scan for new and trending tokens using DexScreener API"""
     try:
