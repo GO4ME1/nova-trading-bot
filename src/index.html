@@ -686,19 +686,19 @@
                     
                     // Display tokens
                     for (const token of data.tokens.slice(0, 5)) {
-                        const priceChange = token.change_24h >= 0 ? `+${token.change_24h.toFixed(2)}%` : `${token.change_24h.toFixed(2)}%`;
-                        const emoji = token.change_24h > 0 ? '📈' : '📉';
-                        addToFeed(`${emoji} ${token.symbol}: $${token.price.toFixed(6)} (${priceChange}) - Safety: ${token.scam_score}/100`);
+                        const priceChange = token.priceChange24h >= 0 ? `+${token.priceChange24h.toFixed(2)}%` : `${token.priceChange24h.toFixed(2)}%`;
+                        const emoji = token.priceChange24h > 0 ? '📈' : '📉';
+                        addToFeed(`${emoji} ${token.symbol}: $${token.price.toFixed(6)} (${priceChange}) - Safety: ${token.safetyScore}/100`);
                     }
                     
                     // Check if we can take a position
                     if (positions.length < maxPositions) {
-                        const minSafety = 85;
+                        const minSafety = 60;
                         const minChange = category === 'established' ? 2 : 8;
                         const forceExecute = scanCount >= 10;
                         
                         for (const token of data.tokens) {
-                            const meetsCriteria = token.scam_score >= minSafety && Math.abs(token.change_24h) > minChange;
+                            const meetsCriteria = token.safetyScore >= minSafety && Math.abs(token.priceChange24h) > minChange;
                             
                             if (meetsCriteria || forceExecute) {
                                 const reason = forceExecute ? 'best available' : (token.change_24h > 0 ? 'Strong momentum' : 'Potential reversal');
