@@ -361,6 +361,11 @@
             <!-- Capital Management -->
             <div class="card">
                 <div class="card-title">💰 Capital Management</div>
+                <div class="stat-item" style="margin-bottom: 15px;">
+                    <div class="stat-label">Set Trading Amount (SOL)</div>
+                    <input type="number" id="tradingAmountInput" value="0.1" min="0.01" step="0.01" style="width: 100%; padding: 10px; background: rgba(15, 23, 42, 0.8); border: 1px solid #334155; border-radius: 8px; color: #60a5fa; font-size: 18px; font-weight: 600; text-align: center;" onchange="updateTradingCapital()">
+                    <div style="font-size: 11px; color: #64748b; margin-top: 5px;">Amount of SOL to use per trade</div>
+                </div>
                 <div class="stat-item">
                     <div class="stat-label">Trading Capital (75%)</div>
                     <div class="stat-value" id="tradingCapital">$50.00</div>
@@ -446,6 +451,14 @@
         let positions = [];
         let maxPositions = 2;
         let positionSize = 25; // $25 per position
+        let tradingAmountSOL = 0.1; // Default 0.1 SOL per trade
+        
+        // Update trading capital based on input
+        function updateTradingCapital() {
+            tradingAmountSOL = parseFloat(document.getElementById('tradingAmountInput').value) || 0.1;
+            console.log('Trading amount updated to:', tradingAmountSOL, 'SOL');
+            addToFeed(`💰 Trading amount set to ${tradingAmountSOL} SOL per trade`);
+        }
         
         // Solana connection (using backend proxy to avoid CORS and rate limits)
         // const connection = new solanaWeb3.Connection('https://api.mainnet-beta.solana.com');
