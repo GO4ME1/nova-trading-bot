@@ -158,7 +158,7 @@ def scan_tokens():
         logger.info(f"SCAN COMPLETE: Returning {len(safe_tokens)} safe tokens")
         logger.info(f"{'=' * 80}\n")
         
-        return jsonify(safe_tokens[:10])  # Return top 10
+        return jsonify({'tokens': safe_tokens[:10]})  # Return top 10
         
     except Exception as e:
         logger.error(f"❌ Token scan error: {str(e)}")
