@@ -751,7 +751,16 @@
                 
                 addToFeed(`📊 Getting Jupiter quote for ${solAmount.toFixed(4)} SOL → ${token.symbol}...`);
                 
-                const quoteResponse = await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${SOL_MINT}&outputMint=${token.address}&amount=${lamports}&slippageBps=50`);
+                const quoteResponse = await fetch('/api/jupiter/quote', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        inputMint: SOL_MINT,
+                        outputMint: token.address,
+                        amount: lamports,
+                        slippageBps: 50
+                    })
+                });
                 const quoteData = await quoteResponse.json();
                 
                 if (!quoteData || quoteData.error) {
@@ -763,7 +772,7 @@
                 addToFeed(`✅ Quote received: ${outputAmount} ${token.symbol} tokens`);
                 
                 // Get swap transaction
-                const swapResponse = await fetch('https://quote-api.jup.ag/v6/swap', {
+                const swapResponse = await fetch('/api/jupiter/swap', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -839,7 +848,7 @@
                 }
                 
                 // Get swap transaction
-                const swapResponse = await fetch('https://quote-api.jup.ag/v6/swap', {
+                const swapResponse = await fetch('/api/jupiter/swap', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
