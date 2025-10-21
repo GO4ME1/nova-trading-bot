@@ -148,7 +148,7 @@ def scan_tokens():
             safety_score = calculate_safety_score(token)
             token['safetyScore'] = safety_score
             
-            if safety_score >= 85:
+            if safety_score >= 60:
                 safe_tokens.append(token)
                 logger.info(f"✓ {token['symbol']}: Safety Score {safety_score} - PASSED")
             else:
@@ -352,25 +352,25 @@ def calculate_safety_score(token):
     
     # Check liquidity (very important for avoiding rug pulls)
     liquidity = token.get('liquidity', 0)
-    if liquidity < 5000:
+    if liquidity < 1000:
         score -= 40
-        logger.debug(f"  - Low liquidity (${liquidity:.0f}): -40 points")
-    elif liquidity < 20000:
+        logger.debug(f"  - Very low liquidity (${liquidity:.0f}): -40 points")
+    elif liquidity < 5000:
         score -= 20
-        logger.debug(f"  - Medium liquidity (${liquidity:.0f}): -20 points")
-    elif liquidity < 50000:
+        logger.debug(f"  - Low liquidity (${liquidity:.0f}): -20 points")
+    elif liquidity < 10000:
         score -= 10
         logger.debug(f"  - Moderate liquidity (${liquidity:.0f}): -10 points")
     
     # Check volume (indicates real trading activity)
     volume = token.get('volume24h', 0)
-    if volume < 1000:
+    if volume < 500:
         score -= 25
         logger.debug(f"  - Very low volume (${volume:.0f}): -25 points")
-    elif volume < 10000:
+    elif volume < 2000:
         score -= 15
         logger.debug(f"  - Low volume (${volume:.0f}): -15 points")
-    elif volume < 50000:
+    elif volume < 10000:
         score -= 5
         logger.debug(f"  - Moderate volume (${volume:.0f}): -5 points")
     
