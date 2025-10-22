@@ -758,6 +758,7 @@
                         inputMint: SOL_MINT,
                         outputMint: token.address,
                         amount: lamports,
+                        taker: walletAddress,
                         slippageBps: 50
                     })
                 });
@@ -769,41 +770,52 @@
                 }
                 
                 const outputAmount = quoteData.outAmount;
+                const requestId = quoteData.requestId;
+                const unsignedTx = quoteData.transaction;
+                
                 addToFeed(`✅ Quote received: ${outputAmount} ${token.symbol} tokens`);
                 
-                // Get swap transaction
-                const swapResponse = await fetch('/api/jupiter/swap', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        quoteResponse: quoteData,
-                        userPublicKey: walletAddress,
-                        wrapAndUnwrapSol: true
-                    })
-                });
-                
-                const swapData = await swapResponse.json();
-                
-                if (!swapData || !swapData.swapTransaction) {
-                    addToFeed('❌ Failed to create swap transaction');
+                if (!unsignedTx || !requestId) {
+                    addToFeed('❌ Invalid quote response - missing transaction or requestId');
                     return;
                 }
                 
                 // Deserialize and sign transaction
-                const swapTransactionBuf = Buffer.from(swapData.swapTransaction, 'base64');
+                const swapTransactionBuf = Buffer.from(unsignedTx, 'base64');
                 const transaction = solanaWeb3.Transaction.from(swapTransactionBuf);
                 
                 addToFeed('🔐 Please approve the transaction in Phantom...');
                 
-                // Sign and send transaction
+                // Sign transaction
                 const signed = await provider.signTransaction(transaction);
-                const txid = await connection.sendRawTransaction(signed.serialize());
+                const signedTxBase64 = signed.serialize().toString('base64');
                 
-                addToFeed(`📤 Transaction sent: ${txid.substring(0, 8)}...`);
+                // Execute swap via backend
+                const executeResponse = await fetch('/api/jupiter/swap', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        requestId: requestId,
+                        signedTransaction: signedTxBase64
+                    })
+                });
+                
+                const executeData = await executeResponse.json();
+                
+                if (!executeData || executeData.error) {
+                    addToFeed(`❌ Failed to execute swap: ${executeData.error || 'Unknown error'}`);
+                    return;
+                }
+                
+                const txid = executeData.txid || executeData.signature;
+                
+                addToFeed(`📤 Transaction executed: ${txid ? txid.substring(0, 8) + '...' : 'pending'}`);
                 addToFeed('⏳ Waiting for confirmation...');
                 
-                // Wait for confirmation
-                await connection.confirmTransaction(txid);
+                // Wait for confirmation if we have txid
+                if (txid) {
+                    await connection.confirmTransaction(txid);
+                }
                 
                 addToFeed(`✅ Trade executed successfully!`);
                 addToFeed(`💰 Bought ${token.symbol} at $${token.price.toFixed(6)}`);
