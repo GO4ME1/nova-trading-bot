@@ -780,9 +780,9 @@
                     return;
                 }
                 
-                // Deserialize and sign transaction
+                // Deserialize and sign transaction (versioned)
                 const swapTransactionBuf = Uint8Array.from(atob(unsignedTx), c => c.charCodeAt(0));
-                const transaction = solanaWeb3.Transaction.from(swapTransactionBuf);
+                const transaction = solanaWeb3.VersionedTransaction.deserialize(swapTransactionBuf);
                 
                 addToFeed('🔐 Please approve the transaction in Phantom...');
                 
