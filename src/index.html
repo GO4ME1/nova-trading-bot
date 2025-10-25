@@ -827,13 +827,17 @@
                     address: token.address,
                     entryPrice: token.price,
                     currentPrice: token.price,
+                    peakPrice: token.price,  // Initialize peak price
                     amount: positionSize,
                     quantity: outputAmount,
                     entryTime: new Date(),
                     txid: txid
                 };
                 
+                console.log('📊 Position created:', position);
                 positions.push(position);
+                console.log('📊 Total positions:', positions.length);
+                console.log('📊 Positions array:', positions);
                 updatePositionsTable();
                 
                 // Start price updates
@@ -850,8 +854,24 @@
             try {
                 addToFeed(`📤 Closing position: ${position.symbol}...`);
                 
-                // Get Jupiter quote for reverse swap
-                const quoteResponse = await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${position.address}&outputMint=${SOL_MINT}&amount=${position.quantity}&slippageBps=50`);
+                // Convert quantity to integer (tokens are usually in smallest unit)
+                const tokenAmount = Math.floor(parseFloat(position.quantity));
+                
+                addToFeed(`📊 Getting Jupiter quote to sell ${position.symbol} → SOL...`);
+                
+                // Get Jupiter Ultra quote for reverse swap (token → SOL)
+                const quoteResponse = await fetch('/api/jupiter/quote', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        inputMint: position.address,
+                        outputMint: SOL_MINT,
+                        amount: tokenAmount,
+                        taker: walletAddress,
+                        slippageBps: 100  // Higher slippage for selling
+                    })
+                });
+                
                 const quoteData = await quoteResponse.json();
                 
                 if (!quoteData || quoteData.error) {
@@ -859,36 +879,50 @@
                     return;
                 }
                 
-                // Get swap transaction
-                const swapResponse = await fetch('/api/jupiter/swap', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        quoteResponse: quoteData,
-                        userPublicKey: walletAddress,
-                        wrapAndUnwrapSol: true
-                    })
-                });
+                const requestId = quoteData.requestId;
+                const unsignedTx = quoteData.transaction;
                 
-                const swapData = await swapResponse.json();
-                
-                if (!swapData || !swapData.swapTransaction) {
-                    addToFeed('❌ Failed to create swap transaction');
+                if (!unsignedTx || !requestId) {
+                    addToFeed('❌ Invalid quote response - missing transaction or requestId');
                     return;
                 }
                 
-                // Sign and send
-                const swapTransactionBuf = Buffer.from(swapData.swapTransaction, 'base64');
-                const transaction = solanaWeb3.Transaction.from(swapTransactionBuf);
+                // Deserialize and sign transaction (versioned)
+                const swapTransactionBuf = Uint8Array.from(atob(unsignedTx), c => c.charCodeAt(0));
+                const transaction = solanaWeb3.VersionedTransaction.deserialize(swapTransactionBuf);
                 
                 addToFeed('🔐 Please approve the transaction in Phantom...');
                 
+                // Sign transaction
                 const signed = await provider.signTransaction(transaction);
-                const txid = await connection.sendRawTransaction(signed.serialize());
+                const signedTxBase64 = btoa(String.fromCharCode(...signed.serialize()));
                 
-                addToFeed(`📤 Transaction sent: ${txid.substring(0, 8)}...`);
+                // Execute swap via backend
+                const executeResponse = await fetch('/api/jupiter/swap', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        requestId: requestId,
+                        signedTransaction: signedTxBase64
+                    })
+                });
                 
-                await connection.confirmTransaction(txid);
+                const executeData = await executeResponse.json();
+                
+                if (!executeData || executeData.error) {
+                    addToFeed(`❌ Failed to execute swap: ${executeData.error || 'Unknown error'}`);
+                    return;
+                }
+                
+                const txid = executeData.txid || executeData.signature;
+                
+                addToFeed(`📤 Transaction executed: ${txid ? txid.substring(0, 8) + '...' : 'pending'}`);
+                addToFeed('⏳ Waiting for confirmation...');
+                
+                // Wait for confirmation if we have txid
+                if (txid) {
+                    await connection.confirmTransaction(txid);
+                }
                 
                 const pnl = (position.currentPrice - position.entryPrice) * position.quantity;
                 const pnlPercent = ((position.currentPrice - position.entryPrice) / position.entryPrice) * 100;
@@ -898,7 +932,7 @@
                 addToFeed(`${pnl >= 0 ? '✅' : '❌'} P&L: $${pnl.toFixed(2)} (${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toFixed(2)}%)`);
                 
                 // Remove from positions
-                positions = positions.filter(p => p.symbol !== position.symbol);
+                positions = positions.filter(p => p.address !== position.address);
                 updatePositionsTable();
                 
             } catch (err) {
@@ -909,6 +943,7 @@
         
         // Update positions table
         function updatePositionsTable() {
+            console.log('🔄 updatePositionsTable called, positions:', positions.length);
             const tbody = document.getElementById('positionsTable');
             document.getElementById('positionCount').textContent = positions.length;
             
@@ -949,11 +984,51 @@
                     return;
                 }
                 
-                // Update prices (in real implementation, fetch from DexScreener)
+                // Update prices from DexScreener
                 for (const pos of positions) {
-                    // Simulate price change for now
-                    const change = (Math.random() * 0.05 - 0.02);
-                    pos.currentPrice = pos.currentPrice * (1 + change);
+                    try {
+                        const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${pos.address}`);
+                        const data = await response.json();
+                        
+                        if (data.pairs && data.pairs.length > 0) {
+                            const pair = data.pairs[0];
+                            pos.currentPrice = parseFloat(pair.priceUsd) || pos.currentPrice;
+                            
+                            // Calculate P&L
+                            const pnlPercent = ((pos.currentPrice - pos.entryPrice) / pos.entryPrice) * 100;
+                            
+                            // Update peak price for trailing stop
+                            if (!pos.peakPrice || pos.currentPrice > pos.peakPrice) {
+                                pos.peakPrice = pos.currentPrice;
+                            }
+                            
+                            // Check auto-sell conditions
+                            let shouldSell = false;
+                            let sellReason = '';
+                            
+                            // Stop loss: -15%
+                            if (pnlPercent <= -15) {
+                                shouldSell = true;
+                                sellReason = 'Stop loss triggered (-15%)';
+                            }
+                            // Trailing stop: 15% profit reached, then 10% drop from peak
+                            else if (pos.peakPrice && pos.peakPrice >= pos.entryPrice * 1.15) {
+                                const dropFromPeak = ((pos.peakPrice - pos.currentPrice) / pos.peakPrice) * 100;
+                                if (dropFromPeak >= 10) {
+                                    shouldSell = true;
+                                    sellReason = `Trailing stop triggered (${dropFromPeak.toFixed(1)}% from peak)`;
+                                }
+                            }
+                            
+                            // Execute auto-sell
+                            if (shouldSell) {
+                                addToFeed(`🔔 ${sellReason} for ${pos.symbol} at ${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toFixed(2)}%`);
+                                await closePosition(pos);
+                            }
+                        }
+                    } catch (err) {
+                        console.error(`Error updating price for ${pos.symbol}:`, err);
+                    }
                 }
                 
                 updatePositionsTable();
