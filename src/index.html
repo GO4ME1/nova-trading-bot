@@ -781,14 +781,14 @@
                 }
                 
                 // Deserialize and sign transaction
-                const swapTransactionBuf = Buffer.from(unsignedTx, 'base64');
+                const swapTransactionBuf = Uint8Array.from(atob(unsignedTx), c => c.charCodeAt(0));
                 const transaction = solanaWeb3.Transaction.from(swapTransactionBuf);
                 
                 addToFeed('🔐 Please approve the transaction in Phantom...');
                 
                 // Sign transaction
                 const signed = await provider.signTransaction(transaction);
-                const signedTxBase64 = signed.serialize().toString('base64');
+                const signedTxBase64 = btoa(String.fromCharCode(...signed.serialize()));
                 
                 // Execute swap via backend
                 const executeResponse = await fetch('/api/jupiter/swap', {
