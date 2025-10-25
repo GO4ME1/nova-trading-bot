@@ -21,5 +21,10 @@
 - [x] Fix trading amount input field not updating trade size
 
 
-- [ ] Fix "connection is not defined" error preventing position tracking
+- [x] Fix "connection is not defined" error preventing position tracking
+
+
+- [ ] Make transaction confirmation non-blocking to allow position tracking
+- [ ] Add Recent Trades display
+- [ ] Prevent multiple buy attempts when out of funds
 

@@ -810,15 +810,18 @@
                 const txid = executeData.txid || executeData.signature;
                 
                 addToFeed(`📤 Transaction executed: ${txid ? txid.substring(0, 8) + '...' : 'pending'}`);
-                addToFeed('⏳ Waiting for confirmation...');
-                
-                // Wait for confirmation if we have txid
-                if (txid) {
-                    await connection.confirmTransaction(txid);
-                }
-                
                 addToFeed(`✅ Trade executed successfully!`);
                 addToFeed(`💰 Bought ${token.symbol} at $${token.price.toFixed(6)}`);
+                
+                // Confirm transaction in background (non-blocking)
+                if (txid) {
+                    connection.confirmTransaction(txid).then(() => {
+                        addToFeed(`✅ Transaction confirmed: ${txid.substring(0, 8)}...`);
+                    }).catch(err => {
+                        console.error('Confirmation error:', err);
+                        addToFeed(`⚠️ Confirmation delayed (transaction still valid)`);
+                    });
+                }
                 
                 // Add to positions
                 const position = {
@@ -917,12 +920,6 @@
                 const txid = executeData.txid || executeData.signature;
                 
                 addToFeed(`📤 Transaction executed: ${txid ? txid.substring(0, 8) + '...' : 'pending'}`);
-                addToFeed('⏳ Waiting for confirmation...');
-                
-                // Wait for confirmation if we have txid
-                if (txid) {
-                    await connection.confirmTransaction(txid);
-                }
                 
                 const pnl = (position.currentPrice - position.entryPrice) * position.quantity;
                 const pnlPercent = ((position.currentPrice - position.entryPrice) / position.entryPrice) * 100;
@@ -930,6 +927,15 @@
                 addToFeed(`✅ Position closed: ${position.symbol}`);
                 addToFeed(`💵 Exit price: $${position.currentPrice.toFixed(6)}`);
                 addToFeed(`${pnl >= 0 ? '✅' : '❌'} P&L: $${pnl.toFixed(2)} (${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toFixed(2)}%)`);
+                
+                // Confirm transaction in background (non-blocking)
+                if (txid) {
+                    connection.confirmTransaction(txid).then(() => {
+                        addToFeed(`✅ Sell confirmed: ${txid.substring(0, 8)}...`);
+                    }).catch(err => {
+                        console.error('Confirmation error:', err);
+                    });
+                }
                 
                 // Remove from positions
                 positions = positions.filter(p => p.address !== position.address);
