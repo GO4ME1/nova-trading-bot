@@ -743,11 +743,11 @@
             }
             
             try {
-                addToFeed(`💰 Preparing to buy ${token.symbol} for $${positionSize}...`);
-                
-                // Get Jupiter quote
-                const solAmount = positionSize / 150; // Approximate SOL price at $150
+                // Use the configured trading amount in SOL
+                const solAmount = tradingAmountSOL;
                 const lamports = Math.floor(solAmount * solanaWeb3.LAMPORTS_PER_SOL);
+                
+                addToFeed(`💰 Preparing to buy ${token.symbol} with ${solAmount} SOL...`);
                 
                 addToFeed(`📊 Getting Jupiter quote for ${solAmount.toFixed(4)} SOL → ${token.symbol}...`);
                 
@@ -828,7 +828,7 @@
                     entryPrice: token.price,
                     currentPrice: token.price,
                     peakPrice: token.price,  // Initialize peak price
-                    amount: positionSize,
+                    amount: solAmount,  // SOL amount used for trade
                     quantity: outputAmount,
                     entryTime: new Date(),
                     txid: txid

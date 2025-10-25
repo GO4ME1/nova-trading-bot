@@ -9,9 +9,14 @@
 - [x] Execute first successful trade
 
 ## In Progress
-- [ ] Remove +50% take profit cap (let winners run)
-- [ ] Fix position tracking to show active positions
-- [ ] Update closePosition to use Ultra Swap API
-- [ ] Implement real-time price updates from DexScreener
-- [ ] Add auto-sell logic: -15% stop loss + 15% trailing stop (10% drop from peak)
+- [x] Remove +50% take profit cap (let winners run)
+- [x] Update closePosition to use Ultra Swap API
+- [x] Implement real-time price updates from DexScreener
+- [x] Add auto-sell logic: -15% stop loss + 15% trailing stop (10% drop from peak)
+- [x] Add debug logging for position tracking
+- [ ] Test position tracking with next trade
+- [ ] Verify auto-sell triggers work correctly
+
+
+- [ ] Fix trading amount input field not updating trade size
 
