@@ -460,8 +460,8 @@
             addToFeed(`💰 Trading amount set to ${tradingAmountSOL} SOL per trade`);
         }
         
-        // Solana connection (using backend proxy to avoid CORS and rate limits)
-        // const connection = new solanaWeb3.Connection('https://api.mainnet-beta.solana.com');
+        // Solana connection for transaction confirmations
+        const connection = new solanaWeb3.Connection('https://api.mainnet-beta.solana.com');
         
         // SOL token mint address
         const SOL_MINT = 'So11111111111111111111111111111111111111112';

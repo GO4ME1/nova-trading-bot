@@ -18,5 +18,8 @@
 - [ ] Verify auto-sell triggers work correctly
 
 
-- [ ] Fix trading amount input field not updating trade size
+- [x] Fix trading amount input field not updating trade size
+
+
+- [ ] Fix "connection is not defined" error preventing position tracking
 
