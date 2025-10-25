@@ -663,7 +663,7 @@
             }
             
             scanForTokens();
-            scanInterval = setInterval(scanForTokens, 10000); // Scan every 10 seconds
+            scanInterval = setInterval(scanForTokens, 30000); // Scan every 30 seconds (avoid rate limits)
         }
         
         // Stop scanning
