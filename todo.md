@@ -15,22 +15,13 @@
 - [x] Add auto-sell logic: -15% stop loss + 15% trailing stop (10% drop from peak)
 - [x] Add debug logging for position tracking
 - [ ] Test position tracking with next trade
-- [ ] Verify auto-sell triggers work correctly
+- [ ] Verify auto-sell trigg- [x] Prevent multiple buy attempts when out of funds
 
 
 - [x] Fix trading amount input field not updating trade size
-
-
 - [x] Fix "connection is not defined" error preventing position tracking
-
-
 - [x] Make transaction confirmation non-blocking to allow position tracking
-- [ ] Add Recent Trades display
-- [ ] Prevent multiple buy attempts when out of funds
-
-
-- [ ] Fix Live Feed to show sell transaction details and P&L
-- [ ] Implement Recent Trades display with completed trades history
-- [ ] Fix P&L calculation to show correct dollar amounts
-- [ ] Add localStorage persistence for positions (survive page refresh)
-
+- [x] Fix Live Feed to show sell transaction details and P&L
+- [x] Implement Recent Trades display with completed trades history
+- [x] Fix P&L calculation to show correct SOL amounts
+- [x] Add localStorage persistence for positions (survive page refresh)

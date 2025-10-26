@@ -631,6 +631,8 @@
                 
                 addToFeed(`💰 Balance updated: ${solBalance.toFixed(4)} SOL`);
                 
+                return solBalance; // Return balance for checks
+                
             } catch (err) {
                 console.error('Balance fetch error:', err);
                 addToFeed('⚠️ Failed to fetch balance: ' + err.message);
@@ -793,6 +795,13 @@
             if (!walletConnected || !botActive) return;
             if (positions.length >= maxPositions) {
                 addToFeed('⚠️ Cannot execute trade: Maximum positions reached');
+                return;
+            }
+            
+            // Check if we have enough SOL balance
+            const currentBalance = await updateWalletBalance();
+            if (!currentBalance || currentBalance < tradingAmountSOL) {
+                addToFeed(`⚠️ Insufficient funds: Need ${tradingAmountSOL} SOL, have ${(currentBalance || 0).toFixed(4)} SOL`);
                 return;
             }
             
