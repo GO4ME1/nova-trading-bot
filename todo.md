@@ -25,3 +25,6 @@
 - [x] Implement Recent Trades display with completed trades history
 - [x] Fix P&L calculation to show correct SOL amounts
 - [x] Add localStorage persistence for positions (survive page refresh)
+- [ ] Fix Close button in Active Positions table
+- [ ] Debug why Recent Trades table not displaying completed trades
+

@@ -916,6 +916,13 @@
             }
         }
         
+        // Close position by index (called from Close button)
+        async function closePositionByIndex(index) {
+            if (index >= 0 && index < positions.length) {
+                await closePosition(positions[index]);
+            }
+        }
+        
         // Close position
         async function closePosition(position) {
             try {
@@ -1009,9 +1016,12 @@
                     sellTxid: txid
                 };
                 
+                console.log('💾 Adding trade to history:', trade);
                 tradeHistory.push(trade);
+                console.log('💾 Trade history length:', tradeHistory.length);
                 saveTradeHistory();
                 updateTradeHistory();
+                console.log('💾 Trade history updated in UI');
                 
                 // Confirm transaction in background (non-blocking)
                 if (txid) {
@@ -1044,7 +1054,7 @@
                 return;
             }
             
-            tbody.innerHTML = positions.map(pos => {
+            tbody.innerHTML = positions.map((pos, index) => {
                 const pnlPercent = ((pos.currentPrice - pos.entryPrice) / pos.entryPrice) * 100;
                 const pnlSOL = pos.amount * (pnlPercent / 100); // P&L in SOL
                 const pnlClass = pnlSOL >= 0 ? 'profit' : 'loss';
@@ -1058,7 +1068,7 @@
                         <td>${pos.amount.toFixed(4)} SOL</td>
                         <td class="${pnlClass}">${pnlEmoji} ${pnlSOL >= 0 ? '+' : ''}${pnlSOL.toFixed(4)} SOL</td>
                         <td class="${pnlClass}">${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toFixed(2)}%</td>
-                        <td><button onclick="closePosition(${JSON.stringify(pos).replace(/"/g, '&quot;')})" style="padding: 5px 10px; background: #e74c3c; color: white; border: none; border-radius: 5px; cursor: pointer;">Close</button></td>
+                        <td><button onclick="closePositionByIndex(${index})" style="padding: 5px 10px; background: #e74c3c; color: white; border: none; border-radius: 5px; cursor: pointer;">Close</button></td>
                     </tr>
                 `;
             }).join('');
@@ -1066,8 +1076,12 @@
         
         // Update trade history display
         function updateTradeHistory() {
+            console.log('🔄 updateTradeHistory called, trades:', tradeHistory.length);
             const tbody = document.getElementById('tradeHistoryTable');
-            if (!tbody) return;
+            if (!tbody) {
+                console.error('❌ tradeHistoryTable element not found!');
+                return;
+            }
             
             if (tradeHistory.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #888;">No trades yet</td></tr>';
