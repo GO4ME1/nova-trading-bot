@@ -24,7 +24,13 @@
 - [x] Fix "connection is not defined" error preventing position tracking
 
 
-- [ ] Make transaction confirmation non-blocking to allow position tracking
+- [x] Make transaction confirmation non-blocking to allow position tracking
 - [ ] Add Recent Trades display
 - [ ] Prevent multiple buy attempts when out of funds
+
+
+- [ ] Fix Live Feed to show sell transaction details and P&L
+- [ ] Implement Recent Trades display with completed trades history
+- [ ] Fix P&L calculation to show correct dollar amounts
+- [ ] Add localStorage persistence for positions (survive page refresh)
 

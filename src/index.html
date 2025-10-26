@@ -431,9 +431,23 @@
             </div>
             
             <div class="card">
-                <div class="card-title">📜 Recent Trades</div>
-                <div id="recentTrades">
-                    <div style="text-align: center; color: #64748b; padding: 20px;">No trades yet</div>
+                <div class="card-title">📋 Recent Trades</div>
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid #334155;">
+                                <th style="padding: 10px; text-align: left; color: #94a3b8;">Token</th>
+                                <th style="padding: 10px; text-align: left; color: #94a3b8;">Date</th>
+                                <th style="padding: 10px; text-align: left; color: #94a3b8;">Entry</th>
+                                <th style="padding: 10px; text-align: left; color: #94a3b8;">Exit</th>
+                                <th style="padding: 10px; text-align: left; color: #94a3b8;">P&L</th>
+                                <th style="padding: 10px; text-align: left; color: #94a3b8;">P&L %</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tradeHistoryTable">
+                            <tr><td colspan="6" style="text-align: center; color: #888; padding: 20px;">No trades yet</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -449,9 +463,49 @@
         let scanInterval = null;
         let scanCount = 0;
         let positions = [];
+        let tradeHistory = []; // Completed trades with P&L
         let maxPositions = 2;
         let positionSize = 25; // $25 per position
         let tradingAmountSOL = 0.1; // Default 0.1 SOL per trade
+        
+        // Load positions and trade history from localStorage
+        function loadFromStorage() {
+            try {
+                const savedPositions = localStorage.getItem('nova_positions');
+                const savedHistory = localStorage.getItem('nova_trade_history');
+                if (savedPositions) {
+                    positions = JSON.parse(savedPositions);
+                    console.log('Loaded positions from storage:', positions.length);
+                    updatePositionsTable();
+                    if (positions.length > 0) startPriceUpdates();
+                }
+                if (savedHistory) {
+                    tradeHistory = JSON.parse(savedHistory);
+                    console.log('Loaded trade history from storage:', tradeHistory.length);
+                    updateTradeHistory();
+                }
+            } catch (err) {
+                console.error('Error loading from storage:', err);
+            }
+        }
+        
+        // Save positions to localStorage
+        function savePositions() {
+            try {
+                localStorage.setItem('nova_positions', JSON.stringify(positions));
+            } catch (err) {
+                console.error('Error saving positions:', err);
+            }
+        }
+        
+        // Save trade history to localStorage
+        function saveTradeHistory() {
+            try {
+                localStorage.setItem('nova_trade_history', JSON.stringify(tradeHistory));
+            } catch (err) {
+                console.error('Error saving trade history:', err);
+            }
+        }
         
         // Update trading capital based on input
         function updateTradingCapital() {
@@ -841,6 +895,7 @@
                 positions.push(position);
                 console.log('📊 Total positions:', positions.length);
                 console.log('📊 Positions array:', positions);
+                savePositions(); // Save to localStorage
                 updatePositionsTable();
                 
                 // Start price updates
@@ -921,12 +976,33 @@
                 
                 addToFeed(`📤 Transaction executed: ${txid ? txid.substring(0, 8) + '...' : 'pending'}`);
                 
-                const pnl = (position.currentPrice - position.entryPrice) * position.quantity;
+                // Calculate P&L in SOL (price difference * quantity in tokens)
                 const pnlPercent = ((position.currentPrice - position.entryPrice) / position.entryPrice) * 100;
+                const pnlSOL = position.amount * (pnlPercent / 100); // P&L in SOL
                 
                 addToFeed(`✅ Position closed: ${position.symbol}`);
                 addToFeed(`💵 Exit price: $${position.currentPrice.toFixed(6)}`);
-                addToFeed(`${pnl >= 0 ? '✅' : '❌'} P&L: $${pnl.toFixed(2)} (${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toFixed(2)}%)`);
+                addToFeed(`${pnlSOL >= 0 ? '✅' : '❌'} P&L: ${pnlSOL >= 0 ? '+' : ''}${pnlSOL.toFixed(4)} SOL (${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toFixed(2)}%)`);
+                
+                // Add to trade history
+                const trade = {
+                    symbol: position.symbol,
+                    address: position.address,
+                    entryPrice: position.entryPrice,
+                    exitPrice: position.currentPrice,
+                    entryTime: position.entryTime,
+                    exitTime: new Date(),
+                    amount: position.amount,
+                    quantity: position.quantity,
+                    pnl: pnlSOL,
+                    pnlPercent: pnlPercent,
+                    buyTxid: position.txid,
+                    sellTxid: txid
+                };
+                
+                tradeHistory.push(trade);
+                saveTradeHistory();
+                updateTradeHistory();
                 
                 // Confirm transaction in background (non-blocking)
                 if (txid) {
@@ -939,6 +1015,7 @@
                 
                 // Remove from positions
                 positions = positions.filter(p => p.address !== position.address);
+                savePositions();
                 updatePositionsTable();
                 
             } catch (err) {
@@ -959,20 +1036,51 @@
             }
             
             tbody.innerHTML = positions.map(pos => {
-                const pnl = (pos.currentPrice - pos.entryPrice) * pos.quantity;
                 const pnlPercent = ((pos.currentPrice - pos.entryPrice) / pos.entryPrice) * 100;
-                const pnlClass = pnl >= 0 ? 'profit' : 'loss';
-                const pnlEmoji = pnl >= 0 ? '📈' : '📉';
+                const pnlSOL = pos.amount * (pnlPercent / 100); // P&L in SOL
+                const pnlClass = pnlSOL >= 0 ? 'profit' : 'loss';
+                const pnlEmoji = pnlSOL >= 0 ? '📈' : '📉';
                 
                 return `
                     <tr>
                         <td><strong>${pos.symbol}</strong></td>
                         <td>$${pos.entryPrice.toFixed(6)}</td>
                         <td>$${pos.currentPrice.toFixed(6)}</td>
-                        <td>$${pos.amount.toFixed(2)}</td>
-                        <td class="${pnlClass}">${pnlEmoji} $${pnl.toFixed(2)}</td>
+                        <td>${pos.amount.toFixed(4)} SOL</td>
+                        <td class="${pnlClass}">${pnlEmoji} ${pnlSOL >= 0 ? '+' : ''}${pnlSOL.toFixed(4)} SOL</td>
                         <td class="${pnlClass}">${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toFixed(2)}%</td>
                         <td><button onclick="closePosition(${JSON.stringify(pos).replace(/"/g, '&quot;')})" style="padding: 5px 10px; background: #e74c3c; color: white; border: none; border-radius: 5px; cursor: pointer;">Close</button></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+        
+        // Update trade history display
+        function updateTradeHistory() {
+            const tbody = document.getElementById('tradeHistoryTable');
+            if (!tbody) return;
+            
+            if (tradeHistory.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #888;">No trades yet</td></tr>';
+                return;
+            }
+            
+            // Show most recent trades first
+            const recentTrades = tradeHistory.slice(-10).reverse();
+            
+            tbody.innerHTML = recentTrades.map(trade => {
+                const pnlClass = trade.pnl >= 0 ? 'profit' : 'loss';
+                const pnlEmoji = trade.pnl >= 0 ? '✅' : '❌';
+                const date = new Date(trade.exitTime).toLocaleString();
+                
+                return `
+                    <tr>
+                        <td><strong>${trade.symbol}</strong></td>
+                        <td>${date}</td>
+                        <td>$${trade.entryPrice.toFixed(6)}</td>
+                        <td>$${trade.exitPrice.toFixed(6)}</td>
+                        <td class="${pnlClass}">${pnlEmoji} ${trade.pnl >= 0 ? '+' : ''}${trade.pnl.toFixed(4)} SOL</td>
+                        <td class="${pnlClass}">${trade.pnlPercent >= 0 ? '+' : ''}${trade.pnlPercent.toFixed(2)}%</td>
                     </tr>
                 `;
             }).join('');
@@ -1085,6 +1193,9 @@
         
         // Auto-reconnect wallet on page load
         window.addEventListener('load', async () => {
+            // Load saved positions and trade history
+            loadFromStorage();
+            
             if (window.solana && window.solana.isPhantom) {
                 try {
                     const resp = await window.solana.connect({ onlyIfTrusted: true });
